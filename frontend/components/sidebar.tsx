@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Tags, Files, Code, ListTodo } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navigation = [
     { name: "Files", href: "/files", icon: Files },
@@ -16,15 +17,16 @@ export function Sidebar() {
     const pathname = usePathname();
 
     return (
-        <div className="flex h-screen w-64 flex-col border-r bg-slate-50 dark:bg-slate-900">
-            {/* Logo */}
-            <div className="flex h-16 items-center border-b px-6">
+        <div className="flex h-screen w-64 flex-col border-r bg-background">
+            {/* Logo and Theme Toggle */}
+            <div className="flex h-16 items-center justify-between border-b px-6">
                 <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600">
                         <span className="text-sm font-bold text-white">DL</span>
                     </div>
                     <span className="text-xl font-semibold">DataLab</span>
                 </div>
+                <ThemeToggle />
             </div>
 
             {/* Navigation */}

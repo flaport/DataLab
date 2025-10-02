@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { TagBadge } from "@/components/tag-badge";
 import {
@@ -13,8 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
+
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 interface Tag {
     id: string;
@@ -58,6 +61,8 @@ export default function EditFunctionPage({
     params: { id: string };
 }) {
     const router = useRouter();
+    const { theme, systemTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [tags, setTags] = useState<Tag[]>([]);
     const [func, setFunc] = useState<Function | null>(null);
     const [loading, setLoading] = useState(true);
@@ -68,6 +73,10 @@ export default function EditFunctionPage({
     const [selectedOutputTags, setSelectedOutputTags] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         fetchData();
@@ -299,12 +308,29 @@ export default function EditFunctionPage({
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pb-4">
-                        <Textarea
-                            value={scriptContent}
-                            onChange={(e) => setScriptContent(e.target.value)}
-                            className="font-mono text-sm min-h-[400px]"
-                            placeholder={DEFAULT_SCRIPT}
-                        />
+                        <div className="border rounded-md overflow-hidden">
+                            {mounted && (
+                                <Editor
+                                    height="400px"
+                                    defaultLanguage="python"
+                                    value={scriptContent}
+                                    onChange={(value) => setScriptContent(value || "")}
+                                    theme={
+                                        (theme === "system" ? systemTheme : theme) === "dark"
+                                            ? "vs-dark"
+                                            : "light"
+                                    }
+                                    options={{
+                                        minimap: { enabled: false },
+                                        fontSize: 13,
+                                        lineNumbers: "on",
+                                        scrollBeyondLastLine: false,
+                                        automaticLayout: true,
+                                        tabSize: 4,
+                                    }}
+                                />
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
