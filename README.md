@@ -1,6 +1,8 @@
 # DataLab
 
-A modern full-stack web application for data upload and management.
+A modern full-stack web application for **automated data file processing**. Upload files, tag them, and let Python functions automatically transform them based on tags. Perfect for data pipelines, file conversions, and batch processing workflows.
+
+**Key Features:** Tag-based automation • Semaphore job control • File lineage tracking • Real-time job monitoring
 
 ## 🚀 Tech Stack
 
@@ -26,14 +28,33 @@ A modern full-stack web application for data upload and management.
 
 ```
 DataLab/
-├── backend/          # Rust + Axum API server
+├── backend/                    # Rust + Axum API server
 │   ├── src/
-│   │   └── main.rs   # Main application entry point
-│   └── Cargo.toml    # Rust dependencies
-├── frontend/         # Next.js + shadcn/ui application
-│   ├── app/          # Next.js app directory
-│   ├── components/   # React components (including shadcn/ui)
-│   └── package.json  # Node dependencies
+│   │   ├── main.rs            # Server entry point with CLI config
+│   │   ├── routes.rs          # API route handlers
+│   │   ├── models.rs          # Data models
+│   │   └── executor.rs        # Python script executor
+│   ├── migrations/            # Database migrations (001-004)
+│   ├── scripts/               # Function scripts (versioned)
+│   ├── uploads/               # Uploaded files
+│   ├── output/                # Function output (temporary)
+│   ├── .sqlx/                 # SQLx offline query cache (commit this!)
+│   └── Cargo.toml             # Rust dependencies
+├── frontend/                   # Next.js + shadcn/ui application
+│   ├── app/
+│   │   ├── files/             # Files view + file dashboard
+│   │   ├── functions/         # Functions management
+│   │   ├── jobs/              # Job monitoring
+│   │   └── tags/              # Tag management
+│   ├── components/
+│   │   ├── ui/                # shadcn/ui components
+│   │   ├── file-card.tsx      # Reusable file card
+│   │   ├── upload-dialog.tsx  # Upload modal
+│   │   ├── tag-dialog.tsx     # Tag create/edit modal
+│   │   └── sidebar.tsx        # Navigation sidebar
+│   └── package.json           # Node dependencies
+├── datalab.db                  # SQLite database (gitignored)
+├── justfile                    # Task runner commands
 └── README.md
 ```
 
@@ -43,8 +64,10 @@ DataLab/
 
 - **Rust** (latest stable): [Install Rust](https://rustup.rs/)
 - **Node.js** (v20+): [Install Node.js](https://nodejs.org/)
-- **npm** or **yarn** or **pnpm**
 - **just** (command runner): [Install just](https://github.com/casey/just#installation)
+- **Python 3.11+**: For running functions - [Install Python](https://www.python.org/)
+- **uv**: For Python dependency management - [Install uv](https://docs.astral.sh/uv/)
+- **sqlx-cli**: For database migrations - `cargo install sqlx-cli --no-default-features --features sqlite`
 
 ### Quick Setup
 
@@ -65,6 +88,34 @@ just dev
 ```
 
 Then open your browser and navigate to `http://localhost:3000`
+
+## 🔄 How It Works
+
+### Basic Workflow
+
+1. **Upload a file** → Automatically tagged with extension (e.g., `.csv`)
+2. **Create a function** with input tags `[.csv]` and output tags `[.json, processed]`
+3. **Upload/tag triggers function** → Job created with status SUBMITTED
+4. **Job waits for semaphore permit** (max 10 concurrent)
+5. **Execution starts** → Status: RUNNING
+6. **Python script runs** with `SOURCE_PATH` and `OUTPUT_DIR` env vars
+7. **Outputs created** → Registered as new files with output tags
+8. **Lineage recorded** → Output linked to source file and function
+9. **Job completes** → Status: SUCCESS (or FAILED with error log)
+
+### Tag-Based Automation
+
+Functions match **ALL** input tags:
+
+- Function with `[.csv, raw-data]` runs on files tagged with **both**
+- Multiple functions can trigger from one file
+- Circular dependencies prevented (functions don't trigger on their own outputs)
+
+### Resource Management
+
+- **Semaphore**: Limits concurrent executions (default: 10)
+- **Background execution**: API responses immediate, jobs run async
+- **Graceful queueing**: Job 11 waits for a slot, doesn't crash system
 
 ### Start Servers Individually
 
@@ -194,13 +245,20 @@ just add-component dialog
 
 ### Backend Development
 
-The backend uses Axum with:
+**Architecture:**
 
-- CORS enabled for frontend communication
-- Structured logging with tracing
-- JSON serialization with serde
-- SQLx for type-safe database queries
-- SQLite for data persistence
+- **Axum** - Async web framework built on Tokio
+- **SQLx** - Compile-time checked SQL with offline mode
+- **SQLite** - Embedded database (upgrade to PostgreSQL for production scale)
+- **Semaphore** - Limits concurrent Python executions to prevent resource exhaustion
+- **Tokio tasks** - Background job execution without blocking API
+
+**Key Concepts:**
+
+- **Job Lifecycle**: Upload/tag → Create job → Acquire semaphore → Execute → Update status
+- **Concurrency Control**: Default 10 concurrent jobs (configurable via `DL_MAX_CONCURRENT_JOBS`)
+- **File Lineage**: Tracks transformations for audit trail and visualization
+- **Extension Tags**: Auto-generated from file extensions, special handling (can't rename, can't delete if in use)
 
 #### Database & SQLx
 
@@ -249,6 +307,13 @@ The database schema is defined in migrations:
 - **function_input_tags** - Required tags for function to trigger
 - **function_output_tags** - Tags applied to successful outputs
 
+**Job Tracking:**
+
+- **jobs** - Function execution tracking
+  - Status: SUBMITTED → RUNNING → SUCCESS/FAILED
+  - Timestamps for created/started/completed
+  - Error messages and output file IDs
+
 **Lineage Tracking:**
 
 - **file_lineage** - Tracks file transformations
@@ -256,7 +321,11 @@ The database schema is defined in migrations:
   - Records success/failure status
   - Enables transformation chain visualization
 
-Files are stored in the `uploads/` directory (will migrate to S3 in the future).
+**Storage:**
+
+- Files: `uploads/` directory (will migrate to S3)
+- Scripts: `scripts/` directory (versioned by timestamp)
+- Temp outputs: `output/` directory (moved to uploads after processing)
 
 #### Writing Functions
 
@@ -313,17 +382,45 @@ df.to_json(output_path, orient="records", indent=2)
 - Dependencies managed by `uv`
 - Executed with `uv run --script`
 
+**Testing Functions Locally:**
+
+```bash
+# Set environment variables
+export SOURCE_PATH="/path/to/input.csv"
+export OUTPUT_DIR="./test_output"
+mkdir -p $OUTPUT_DIR
+
+# Run the script
+cd backend
+uv run --script scripts/your_function.py
+
+# Check outputs
+ls -la $OUTPUT_DIR
+```
+
 See `backend/scripts/example_csv_to_json.py` for a complete example.
 
 ### Frontend Development
 
-The frontend uses:
+**Tech Stack:**
 
-- Server and Client Components (React Server Components)
-- Tailwind CSS v4 for styling
-- shadcn/ui for pre-built accessible components
-- Drag-and-drop file upload
-- Real-time tag management
+- **Next.js 15** with App Router and Server Components
+- **shadcn/ui** for beautiful, accessible components
+- **Tailwind CSS v4** for styling
+- **TypeScript** for type safety
+
+**Key Components:**
+
+- `FileCard` - Reusable file display with lineage info
+- `UploadDialog` - Drag-and-drop upload with tag selection
+- `TagDialog` - Create/edit tags (dual mode component)
+- `Sidebar` - Navigation with active state
+
+**State Management:**
+
+- React hooks (useState, useEffect)
+- Server-side data fetching
+- Auto-refresh for Jobs view (2-second polling)
 
 ## ✨ Features
 
@@ -359,17 +456,61 @@ The frontend uses:
 - ✅ Modern, responsive UI with shadcn/ui
 - ✅ Error handling with user-friendly messages
 
+## 🐛 Troubleshooting
+
+### Backend won't start
+
+**Port already in use:**
+
+```bash
+just kill-ports  # Kills processes on 8080 and 3000
+```
+
+**Database errors:**
+
+```bash
+# Regenerate SQLx offline data
+cd backend
+DL_DATABASE_URL=sqlite:../datalab.db cargo sqlx prepare
+```
+
+### Functions not executing
+
+1. Check Jobs view for error messages
+2. Verify `uv` is installed: `uv --version`
+3. Check function has correct input tags
+4. View logs in terminal running backend
+
+### Frontend issues
+
+```bash
+cd frontend
+rm -rf .next node_modules
+npm install
+npm run dev
+```
+
 ## 📝 Roadmap
+
+### Planned Features
 
 - [ ] Migrate file storage to S3 (uploads, scripts, outputs)
 - [ ] Add authentication and user accounts
-- [ ] Implement job queue for function execution
-- [ ] Add execution status tracking and logs viewer
-- [ ] Containerize function execution for security
-- [ ] Add data visualization and file preview
+- [ ] Priority-based job queue for fairness
+- [ ] Containerize function execution (Docker/isolate)
+- [ ] File content preview and visualization
 - [ ] Support for multi-file input functions
-- [ ] Manual function triggers
-- [ ] Export and import functionality
+- [ ] Manual function triggers and re-run
+- [ ] Execution logs viewer in UI
+- [ ] Export/import configurations
+- [ ] Webhook notifications for job completion
+
+### Completed ✅
+
+- ✅ Semaphore-based concurrency control
+- ✅ Job status tracking (SUBMITTED/RUNNING/SUCCESS/FAILED)
+- ✅ File lineage tracking
+- ✅ Automatic function triggering
 
 ## 🤝 Contributing
 
