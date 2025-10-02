@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id as \"id!\", t.name as \"name!\", t.color as \"color!\", t.created_at as \"created_at!\"\n               FROM tags t\n               INNER JOIN upload_tags ut ON t.id = ut.tag_id\n               WHERE ut.upload_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "color!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e38401a1e25afcd007005c05d9e9e295f18cac1d6647aabb82e9ccef00b8fd72"
+}

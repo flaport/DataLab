@@ -4,6 +4,14 @@
 *.pdb
 Cargo.lock
 
+# Database
+datalab.db
+datalab.db-shm
+datalab.db-wal
+
+# Uploads
+uploads/
+
 # IDE
 .vscode/
 .idea/

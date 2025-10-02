@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id as \"id!\", filename as \"filename!\", original_filename as \"original_filename!\", file_size as \"file_size!\", mime_type, created_at as \"created_at!\" FROM uploads ORDER BY created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "filename!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "original_filename!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "file_size!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "mime_type",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "acfcd9d8fab1068065546fc17fc205c81d6ff1ba4d9f32b4376f3646ae0ff587"
+}

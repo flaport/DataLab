@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM upload_tags WHERE upload_id = ? AND tag_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1f4a976f46b8ab3e8978dabcb442385e180b82c40ba8e404f2605ac39341cdc5"
+}

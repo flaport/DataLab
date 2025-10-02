@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "c24e78fcb7ece4c8f4ec2cf023ed021b2f1fe1d352fd2481aee164ff10d6d84d"
+}

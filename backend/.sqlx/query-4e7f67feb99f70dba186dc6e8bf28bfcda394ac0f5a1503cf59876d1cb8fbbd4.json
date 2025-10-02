@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE tags SET color = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4e7f67feb99f70dba186dc6e8bf28bfcda394ac0f5a1503cf59876d1cb8fbbd4"
+}

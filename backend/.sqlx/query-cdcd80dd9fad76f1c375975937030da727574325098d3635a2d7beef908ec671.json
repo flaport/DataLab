@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "cdcd80dd9fad76f1c375975937030da727574325098d3635a2d7beef908ec671"
+}

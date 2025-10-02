@@ -1,6 +1,14 @@
 # Development scripts
 *.log
 
+# Database
+datalab.db
+datalab.db-shm
+datalab.db-wal
+
+# Uploads
+uploads/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -16,4 +24,3 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
-

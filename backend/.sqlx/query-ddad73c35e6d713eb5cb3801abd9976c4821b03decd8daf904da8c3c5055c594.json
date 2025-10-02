@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id as \"id!\", name as \"name!\", color as \"color!\", created_at as \"created_at!\" FROM tags ORDER BY created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "color!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ddad73c35e6d713eb5cb3801abd9976c4821b03decd8daf904da8c3c5055c594"
+}

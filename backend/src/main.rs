@@ -1,13 +1,15 @@
-use axum::{http::StatusCode, routing::get, Json, Router};
-use serde::{Deserialize, Serialize};
+mod models;
+mod routes;
+
+use axum::Router;
+use sqlx::sqlite::SqlitePool;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
-#[derive(Serialize, Deserialize)]
-struct HealthResponse {
-    status: String,
-    message: String,
+pub struct AppState {
+    db: SqlitePool,
 }
 
 #[tokio::main]
@@ -18,10 +20,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compact()
         .init();
 
+    // Create uploads directory if it doesn't exist
+    tokio::fs::create_dir_all("uploads").await?;
+
+    // Initialize database
+    let database_url = "sqlite:../datalab.db";
+    let db = SqlitePool::connect(database_url).await?;
+
+    // Run migrations
+    let migrations = include_str!("../migrations/001_init.sql");
+    sqlx::query(migrations).execute(&db).await?;
+
+    tracing::info!("✅ Database initialized");
+
+    // Create shared application state
+    let state = Arc::new(AppState { db });
+
     // Build our application with routes
     let app = Router::new()
-        .route("/", get(root))
-        .route("/health", get(health_check))
+        .nest("/api", routes::api_routes())
+        .with_state(state)
         // Enable CORS for frontend communication
         .layer(
             CorsLayer::new()
@@ -51,24 +69,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     axum::serve(listener, app).await?;
     Ok(())
-}
-
-async fn root() -> (StatusCode, Json<HealthResponse>) {
-    (
-        StatusCode::OK,
-        Json(HealthResponse {
-            status: "ok".to_string(),
-            message: "Welcome to DataLab API".to_string(),
-        }),
-    )
-}
-
-async fn health_check() -> (StatusCode, Json<HealthResponse>) {
-    (
-        StatusCode::OK,
-        Json(HealthResponse {
-            status: "healthy".to_string(),
-            message: "Backend is running".to_string(),
-        }),
-    )
 }

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT filename FROM uploads WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "filename",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e1ad71f14c1b954e2849f2b3744b53c972b0f600a6f3eecd362710e7e35f0ba4"
+}
