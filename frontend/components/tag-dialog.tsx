@@ -61,9 +61,9 @@ export function TagDialog({
         if (!name.trim()) return;
 
         // Validate tag name doesn't contain forbidden character
-        if (name.includes("+")) {
+        if (name.includes("~")) {
             setError(
-                "Tag names cannot contain the '+' character (reserved for URL separator)",
+                "Tag names cannot contain the '~' character (reserved for URL separator)",
             );
             return;
         }
@@ -102,7 +102,7 @@ export function TagDialog({
                 setError("Extension tags cannot be renamed.");
             } else if (response.status === 400) {
                 setError(
-                    "Tag names cannot contain the '+' character (reserved for URL separator).",
+                    "Tag names cannot contain the '~' character (reserved for URL separator).",
                 );
             } else {
                 setError(`Failed to ${mode} tag. Please try again.`);

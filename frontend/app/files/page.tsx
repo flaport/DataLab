@@ -82,7 +82,7 @@ export default function DataPage() {
   // Initialize selected tags from URL after tags are loaded
   useEffect(() => {
     const tagNamesFromUrl =
-      searchParams.get("tags")?.split("+").filter(Boolean) || [];
+      searchParams.get("tags")?.split("~").filter(Boolean) || [];
     if (tagNamesFromUrl.length > 0 && tags.length > 0) {
       const tagIds = tags
         .filter((tag) => tagNamesFromUrl.includes(tag.name))
@@ -97,12 +97,12 @@ export default function DataPage() {
 
     if (searchQuery) params.set("q", searchQuery);
 
-    // Use tag names with + separator (URL-safe, no encoding needed)
+    // Use tag names with ~ separator (URL-safe, no encoding needed)
     if (selectedTags.length > 0) {
       const tagNames = tags
         .filter((tag) => selectedTags.includes(tag.id))
         .map((tag) => tag.name)
-        .join("+");
+        .join("~");
       if (tagNames) params.set("tags", tagNames);
     }
 

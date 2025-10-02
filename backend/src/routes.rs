@@ -61,7 +61,7 @@ async fn create_tag(
     Json(payload): Json<CreateTag>,
 ) -> Result<(StatusCode, Json<Tag>), StatusCode> {
     // Validate tag name doesn't contain forbidden character
-    if payload.name.contains('+') {
+    if payload.name.contains('~') {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -137,7 +137,7 @@ async fn update_tag(
             return Err(StatusCode::FORBIDDEN); // 403 Forbidden - cannot rename extension tags
         }
         // Validate tag name doesn't contain forbidden character
-        if name.contains('+') {
+        if name.contains('~') {
             return Err(StatusCode::BAD_REQUEST);
         }
         sqlx::query!("UPDATE tags SET name = ? WHERE id = ?", name, id)
