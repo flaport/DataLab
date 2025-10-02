@@ -1,8 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { TagBadge } from "@/components/tag-badge";
 import { FileIcon, Trash2, Tag as TagIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -90,13 +90,7 @@ export function FileCard({
           </div>
           <div className="flex flex-wrap gap-2">
             {upload.tags.map((tag) => (
-              <Badge
-                key={tag.id}
-                style={{ backgroundColor: tag.color }}
-                className="text-white"
-              >
-                {tag.name}
-              </Badge>
+              <TagBadge key={tag.id} tag={tag} />
             ))}
           </div>
         </div>

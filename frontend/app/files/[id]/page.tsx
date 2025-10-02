@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge } from "@/components/tag-badge";
 import {
   Card,
   CardContent,
@@ -118,13 +118,7 @@ export default function FileDashboard({ params }: { params: { id: string } }) {
               </h1>
               <div className="flex flex-wrap gap-2">
                 {file.tags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    style={{ backgroundColor: tag.color }}
-                    className="text-white"
-                  >
-                    {tag.name}
-                  </Badge>
+                  <TagBadge key={tag.id} tag={tag} />
                 ))}
               </div>
             </div>

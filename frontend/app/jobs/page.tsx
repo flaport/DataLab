@@ -216,7 +216,9 @@ export default function JobsPage() {
                                         <Button
                                             variant="link"
                                             className="p-0 h-auto text-sm text-slate-600"
-                                            onClick={() => router.push(`/functions`)}
+                                            onClick={() =>
+                                                router.push(`/functions/${job.function_id}`)
+                                            }
                                         >
                                             {job.function_name || "Unknown function"}
                                             <ExternalLink className="ml-1 h-3 w-3" />

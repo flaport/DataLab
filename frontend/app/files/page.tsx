@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { TagBadge } from "@/components/tag-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -336,26 +336,14 @@ export default function DataPage() {
             <div className="space-y-2">
               <Label>Filter by Tags</Label>
               <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag.id);
-                  return (
-                    <div key={tag.id} className="flex items-center gap-2">
-                      <Badge
-                        style={{
-                          backgroundColor: isSelected
-                            ? tag.color
-                            : "transparent",
-                          color: isSelected ? "white" : tag.color,
-                          borderColor: tag.color,
-                        }}
-                        className="cursor-pointer border-2 transition-all hover:scale-105"
-                        onClick={() => toggleTag(tag.id)}
-                      >
-                        {tag.name}
-                      </Badge>
-                    </div>
-                  );
-                })}
+                {tags.map((tag) => (
+                  <TagBadge
+                    key={tag.id}
+                    tag={tag}
+                    selected={selectedTags.includes(tag.id)}
+                    onClick={() => toggleTag(tag.id)}
+                  />
+                ))}
               </div>
               {selectedTags.length > 0 && (
                 <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -519,27 +507,16 @@ export default function DataPage() {
                   Click tags to add or remove them:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => {
-                    const isSelected = editingUpload?.tags.some(
-                      (t) => t.id === tag.id,
-                    );
-                    return (
-                      <Badge
-                        key={tag.id}
-                        style={{
-                          backgroundColor: isSelected
-                            ? tag.color
-                            : "transparent",
-                          color: isSelected ? "white" : tag.color,
-                          borderColor: tag.color,
-                        }}
-                        className="cursor-pointer border-2 transition-all hover:scale-105"
-                        onClick={() => toggleTagForUpload(tag.id)}
-                      >
-                        {tag.name}
-                      </Badge>
-                    );
-                  })}
+                  {tags.map((tag) => (
+                    <TagBadge
+                      key={tag.id}
+                      tag={tag}
+                      selected={editingUpload?.tags.some(
+                        (t) => t.id === tag.id,
+                      )}
+                      onClick={() => toggleTagForUpload(tag.id)}
+                    />
+                  ))}
                 </div>
               </div>
             )}

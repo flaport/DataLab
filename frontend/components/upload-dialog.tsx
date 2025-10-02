@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge } from "@/components/tag-badge";
 import {
     Dialog,
     DialogContent,
@@ -159,22 +159,12 @@ export function UploadDialog({
                                         <p className="text-sm font-medium text-left">Add Tags:</p>
                                         <div className="flex flex-wrap gap-2 justify-center">
                                             {tags.map((tag) => (
-                                                <Badge
+                                                <TagBadge
                                                     key={tag.id}
-                                                    style={{
-                                                        backgroundColor: selectedTags.includes(tag.id)
-                                                            ? tag.color
-                                                            : "transparent",
-                                                        color: selectedTags.includes(tag.id)
-                                                            ? "white"
-                                                            : tag.color,
-                                                        borderColor: tag.color,
-                                                    }}
-                                                    className="cursor-pointer border-2"
+                                                    tag={tag}
+                                                    selected={selectedTags.includes(tag.id)}
                                                     onClick={() => toggleTag(tag.id)}
-                                                >
-                                                    {tag.name}
-                                                </Badge>
+                                                />
                                             ))}
                                         </div>
                                     </div>
