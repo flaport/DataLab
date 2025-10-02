@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tag_id as \"tag_id!\" FROM upload_tags WHERE upload_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "tag_id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dfcf621c2270b87e88934780e6a8f7cc7b30b78b7a80f8329efa0bb774269335"
+}

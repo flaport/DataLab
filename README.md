@@ -105,6 +105,14 @@ Backend runs on `http://localhost:8080`:
 - `POST /api/uploads/:id/tags` - Add tags to an upload
 - `DELETE /api/uploads/:id/tags/:tag_id` - Remove a tag from an upload
 
+### Functions
+
+- `GET /api/functions` - List all functions
+- `POST /api/functions` - Create a new function
+- `GET /api/functions/:id` - Get a specific function
+- `PUT /api/functions/:id` - Update a function
+- `DELETE /api/functions/:id` - Delete a function
+
 ## 🏗️ Development
 
 ### Available Commands
@@ -191,6 +199,60 @@ The database schema is defined in `backend/migrations/001_init.sql`:
 
 Files are stored in the `uploads/` directory (will migrate to S3 in the future).
 
+#### Writing Functions
+
+Functions are Python scripts that automatically process files based on tags.
+
+**Example Function (CSV to JSON converter):**
+
+```python
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "pandas>=2.0.0",
+# ]
+# ///
+
+import os
+import pandas as pd
+
+# Get paths from environment
+source_path = os.environ["SOURCE_PATH"]
+output_dir = os.environ["OUTPUT_DIR"]
+
+# Process the file
+df = pd.read_csv(source_path)
+base_name = os.path.splitext(os.path.basename(source_path))[0]
+
+# Write output
+output_path = os.path.join(output_dir, f"{base_name}.json")
+df.to_json(output_path, orient="records", indent=2)
+```
+
+**How Functions Work:**
+
+1. Define **input tags** (e.g., `.csv`, `raw-data`)
+2. Define **output tags** (e.g., `.json`, `processed`)
+3. Write Python script using PEP 723 inline metadata
+4. Function runs automatically when:
+   - A file is uploaded with ALL input tags
+   - Tags are added to existing file matching ALL input tags
+5. Output files are saved to `uploads/` with output tags applied
+6. Script errors create `.log` files in `output/`
+
+**Environment Variables:**
+
+- `SOURCE_PATH` - Full path to input file
+- `OUTPUT_DIR` - Directory to write output files
+
+**Script Requirements:**
+
+- Must use PEP 723 inline metadata format
+- Dependencies managed by `uv`
+- Executed with `uv run --script`
+
+See `backend/scripts/example_csv_to_json.py` for a complete example.
+
 ### Frontend Development
 
 The frontend uses:
@@ -210,6 +272,14 @@ The frontend uses:
   - Statistics dashboard with placeholder for future analytics
   - Content preview area (coming soon)
   - Download functionality
+- ✅ **Functions (Automated Processing)** - Python scripts that transform files
+  - Define input tags and output tags for functions
+  - Scripts run automatically when files match input tags
+  - Supports PEP 723 inline metadata for dependencies
+  - Executed via `uv run --script` with SOURCE_PATH env var
+  - Output files automatically registered with output tags
+  - Failed executions create log files
+  - Script versioning by timestamp
 - ✅ Tag management with color coding and edit functionality
 - ✅ File organization with tags
 - ✅ **Automatic file extension tagging** - Files are automatically tagged with their extension (e.g., `.pdf`, `.csv`)
@@ -226,11 +296,14 @@ The frontend uses:
 
 ## 📝 Roadmap
 
-- [ ] Migrate file storage to S3
+- [ ] Migrate file storage to S3 (uploads, scripts, outputs)
 - [ ] Add authentication and user accounts
-- [ ] Implement file search and filtering
-- [ ] Add data visualization
-- [ ] Add file processing capabilities
+- [ ] Implement job queue for function execution
+- [ ] Add execution status tracking and logs viewer
+- [ ] Containerize function execution for security
+- [ ] Add data visualization and file preview
+- [ ] Support for multi-file input functions
+- [ ] Manual function triggers
 - [ ] Export and import functionality
 
 ## 🤝 Contributing

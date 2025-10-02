@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tag_id as \"tag_id!\" FROM function_input_tags WHERE function_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "tag_id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dcf5cdb53731ff8ccb20e1a1fbf55c0cd91a2e4dfd1d68d21b9a6c969aaeb305"
+}

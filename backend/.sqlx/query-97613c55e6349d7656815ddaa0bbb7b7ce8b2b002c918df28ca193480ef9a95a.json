@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM function_output_tags WHERE function_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "97613c55e6349d7656815ddaa0bbb7b7ce8b2b002c918df28ca193480ef9a95a"
+}

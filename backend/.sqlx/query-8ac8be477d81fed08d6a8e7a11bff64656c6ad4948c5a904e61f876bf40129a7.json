@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO function_input_tags (function_id, tag_id) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "8ac8be477d81fed08d6a8e7a11bff64656c6ad4948c5a904e61f876bf40129a7"
+}

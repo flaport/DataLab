@@ -1,4 +1,6 @@
-use crate::models::{CreateTag, Tag, UpdateTag, Upload, UploadResponse};
+use crate::models::{
+    CreateFunction, CreateTag, Function, Tag, UpdateFunction, UpdateTag, Upload, UploadResponse,
+};
 use crate::AppState;
 use axum::{
     extract::{Multipart, Path, State},
@@ -18,6 +20,13 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/uploads/:id", get(get_upload).delete(delete_upload))
         .route("/uploads/:id/tags", post(add_tags_to_upload))
         .route("/uploads/:id/tags/:tag_id", delete(remove_tag_from_upload))
+        .route("/functions", get(list_functions).post(create_function))
+        .route(
+            "/functions/:id",
+            get(get_function)
+                .put(update_function)
+                .delete(delete_function),
+        )
 }
 
 async fn health_check() -> Json<serde_json::Value> {
@@ -295,6 +304,11 @@ async fn upload_file(
         .await;
     }
 
+    // Trigger function execution in the background
+    let upload_id_clone = id.clone();
+    let state_clone = state.clone();
+    trigger_functions_for_upload(state_clone, upload_id_clone).await;
+
     Ok((
         StatusCode::CREATED,
         Json(UploadResponse {
@@ -450,6 +464,11 @@ async fn add_tags_to_upload(
         .await;
     }
 
+    // Trigger function execution in the background
+    let upload_id_clone = id.clone();
+    let state_clone = state.clone();
+    trigger_functions_for_upload(state_clone, upload_id_clone).await;
+
     Ok(StatusCode::OK)
 }
 
@@ -465,6 +484,487 @@ async fn remove_tag_from_upload(
     .execute(&state.db)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ============= FUNCTIONS =============
+
+// Helper function to trigger function execution for an upload
+async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
+    tokio::spawn(async move {
+        // Fetch the upload with its tags
+        let upload = match sqlx::query!(
+            r#"SELECT id as "id!", filename as "filename!" FROM uploads WHERE id = ?"#,
+            upload_id
+        )
+        .fetch_optional(&state.db)
+        .await
+        {
+            Ok(Some(u)) => u,
+            _ => return,
+        };
+
+        let upload_tags: Vec<String> = sqlx::query!(
+            r#"SELECT tag_id as "tag_id!" FROM upload_tags WHERE upload_id = ?"#,
+            upload_id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+        .iter()
+        .map(|r| r.tag_id.clone())
+        .collect();
+
+        // Find all functions
+        let functions = sqlx::query!(
+            r#"SELECT id as "id!", script_filename as "script_filename!" FROM functions"#
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        for function in functions {
+            // Get function's input tags
+            let input_tags: Vec<String> = sqlx::query!(
+                r#"SELECT tag_id as "tag_id!" FROM function_input_tags WHERE function_id = ?"#,
+                function.id
+            )
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default()
+            .iter()
+            .map(|r| r.tag_id.clone())
+            .collect();
+
+            // Check if upload has all input tags
+            let has_all_tags = input_tags.iter().all(|tag| upload_tags.contains(tag));
+
+            if has_all_tags && !input_tags.is_empty() {
+                // Execute function
+                tracing::info!(
+                    "Triggering function {} for upload {}",
+                    function.id,
+                    upload_id
+                );
+
+                match state
+                    .executor
+                    .execute_function(&function.script_filename, &upload.filename)
+                    .await
+                {
+                    Ok(output_files) => {
+                        // Get output tags for this function
+                        let output_tag_ids: Vec<String> = sqlx::query!(
+                            r#"SELECT tag_id as "tag_id!" FROM function_output_tags WHERE function_id = ?"#,
+                            function.id
+                        )
+                        .fetch_all(&state.db)
+                        .await
+                        .unwrap_or_default()
+                        .iter()
+                        .map(|r| r.tag_id.clone())
+                        .collect();
+
+                        // Register each output file as a new upload
+                        for output_file in output_files {
+                            let output_path = format!("output/{}", output_file);
+                            if let Ok(metadata) = tokio::fs::metadata(&output_path).await {
+                                let new_id = Uuid::new_v4().to_string();
+                                let created_at = chrono::Utc::now().to_rfc3339();
+                                let file_size = metadata.len() as i64;
+
+                                // Move file to uploads directory
+                                let new_filename = format!("{}_{}", new_id, output_file);
+                                let new_path = format!("uploads/{}", new_filename);
+                                let _ = tokio::fs::rename(&output_path, &new_path).await;
+
+                                // Save to database
+                                let _ = sqlx::query!(
+                                    "INSERT INTO uploads (id, filename, original_filename, file_size, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                    new_id,
+                                    new_filename,
+                                    output_file,
+                                    file_size,
+                                    None::<String>,
+                                    created_at
+                                )
+                                .execute(&state.db)
+                                .await;
+
+                                // Apply output tags
+                                for tag_id in &output_tag_ids {
+                                    let _ = sqlx::query!(
+                                        "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+                                        new_id,
+                                        tag_id
+                                    )
+                                    .execute(&state.db)
+                                    .await;
+                                }
+
+                                // Apply extension tag
+                                if let Some(extension) = output_file.rsplit('.').next() {
+                                    if !extension.is_empty() && extension != output_file {
+                                        let ext_tag_name = format!(".{}", extension.to_lowercase());
+                                        if let Ok(Some(tag)) = sqlx::query!(
+                                            r#"SELECT id as "id!" FROM tags WHERE name = ?"#,
+                                            ext_tag_name
+                                        )
+                                        .fetch_optional(&state.db)
+                                        .await
+                                        {
+                                            let _ = sqlx::query!(
+                                                "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+                                                new_id,
+                                                tag.id
+                                            )
+                                            .execute(&state.db)
+                                            .await;
+                                        }
+                                    }
+                                }
+
+                                tracing::info!("Created output file: {}", output_file);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Function execution failed: {}", e);
+                    }
+                }
+            }
+        }
+    });
+}
+
+async fn list_functions(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<Function>>, StatusCode> {
+    #[derive(sqlx::FromRow)]
+    struct FunctionRow {
+        id: String,
+        name: String,
+        script_filename: String,
+        created_at: String,
+    }
+
+    let functions = sqlx::query_as!(
+        FunctionRow,
+        r#"SELECT id as "id!", name as "name!", script_filename as "script_filename!", created_at as "created_at!" FROM functions ORDER BY created_at DESC"#
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut result = Vec::new();
+    for func_row in functions {
+        // Fetch input tags
+        let input_tags = sqlx::query_as!(
+            Tag,
+            r#"SELECT t.id as "id!", t.name as "name!", t.color as "color!", t.created_at as "created_at!"
+               FROM tags t
+               INNER JOIN function_input_tags fit ON t.id = fit.tag_id
+               WHERE fit.function_id = ?"#,
+            func_row.id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        // Fetch output tags
+        let output_tags = sqlx::query_as!(
+            Tag,
+            r#"SELECT t.id as "id!", t.name as "name!", t.color as "color!", t.created_at as "created_at!"
+               FROM tags t
+               INNER JOIN function_output_tags fot ON t.id = fot.tag_id
+               WHERE fot.function_id = ?"#,
+            func_row.id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        result.push(Function {
+            id: func_row.id,
+            name: func_row.name,
+            script_filename: func_row.script_filename,
+            created_at: func_row.created_at,
+            input_tags,
+            output_tags,
+        });
+    }
+
+    Ok(Json(result))
+}
+
+async fn create_function(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<CreateFunction>,
+) -> Result<(StatusCode, Json<Function>), StatusCode> {
+    let id = Uuid::new_v4().to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
+    let script_filename = format!("{}_{}.py", created_at.replace([':', '-', '.'], "_"), id);
+
+    // Save script to file
+    let script_path = format!("scripts/{}", script_filename);
+    tokio::fs::write(&script_path, &payload.script_content)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Save function to database
+    sqlx::query!(
+        "INSERT INTO functions (id, name, script_filename, created_at) VALUES (?, ?, ?, ?)",
+        id,
+        payload.name,
+        script_filename,
+        created_at
+    )
+    .execute(&state.db)
+    .await
+    .map_err(|e| {
+        if e.to_string().contains("UNIQUE constraint failed") {
+            StatusCode::CONFLICT
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    })?;
+
+    // Add input tags
+    for tag_id in &payload.input_tag_ids {
+        let _ = sqlx::query!(
+            "INSERT INTO function_input_tags (function_id, tag_id) VALUES (?, ?)",
+            id,
+            tag_id
+        )
+        .execute(&state.db)
+        .await;
+    }
+
+    // Add output tags
+    for tag_id in &payload.output_tag_ids {
+        let _ = sqlx::query!(
+            "INSERT INTO function_output_tags (function_id, tag_id) VALUES (?, ?)",
+            id,
+            tag_id
+        )
+        .execute(&state.db)
+        .await;
+    }
+
+    // Fetch tags for response
+    let input_tags = sqlx::query_as!(
+        Tag,
+        r#"SELECT t.id as "id!", t.name as "name!", t.color as "color!", t.created_at as "created_at!"
+           FROM tags t
+           INNER JOIN function_input_tags fit ON t.id = fit.tag_id
+           WHERE fit.function_id = ?"#,
+        id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    let output_tags = sqlx::query_as!(
+        Tag,
+        r#"SELECT t.id as "id!", t.name as "name!", t.color as "color!", t.created_at as "created_at!"
+           FROM tags t
+           INNER JOIN function_output_tags fot ON t.id = fot.tag_id
+           WHERE fot.function_id = ?"#,
+        id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    Ok((
+        StatusCode::CREATED,
+        Json(Function {
+            id,
+            name: payload.name,
+            script_filename,
+            created_at,
+            input_tags,
+            output_tags,
+        }),
+    ))
+}
+
+async fn get_function(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<Function>, StatusCode> {
+    #[derive(sqlx::FromRow)]
+    struct FunctionRow {
+        id: String,
+        name: String,
+        script_filename: String,
+        created_at: String,
+    }
+
+    let func_row = sqlx::query_as!(
+        FunctionRow,
+        r#"SELECT id as "id!", name as "name!", script_filename as "script_filename!", created_at as "created_at!" FROM functions WHERE id = ?"#,
+        id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    let input_tags = sqlx::query_as!(
+        Tag,
+        r#"SELECT t.id as "id!", t.name as "name!", t.color as "color!", t.created_at as "created_at!"
+           FROM tags t
+           INNER JOIN function_input_tags fit ON t.id = fit.tag_id
+           WHERE fit.function_id = ?"#,
+        func_row.id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    let output_tags = sqlx::query_as!(
+        Tag,
+        r#"SELECT t.id as "id!", t.name as "name!", t.color as "color!", t.created_at as "created_at!"
+           FROM tags t
+           INNER JOIN function_output_tags fot ON t.id = fot.tag_id
+           WHERE fot.function_id = ?"#,
+        func_row.id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    Ok(Json(Function {
+        id: func_row.id,
+        name: func_row.name,
+        script_filename: func_row.script_filename,
+        created_at: func_row.created_at,
+        input_tags,
+        output_tags,
+    }))
+}
+
+async fn update_function(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateFunction>,
+) -> Result<Json<Function>, StatusCode> {
+    // Check if function exists
+    let _existing = sqlx::query!(
+        r#"SELECT script_filename as "script_filename!" FROM functions WHERE id = ?"#,
+        id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Update script content if provided
+    if let Some(script_content) = &payload.script_content {
+        let created_at = chrono::Utc::now().to_rfc3339();
+        let script_filename = format!("{}_{}.py", created_at.replace([':', '-', '.'], "_"), id);
+        let script_path = format!("scripts/{}", script_filename);
+
+        tokio::fs::write(&script_path, script_content)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        sqlx::query!(
+            "UPDATE functions SET script_filename = ? WHERE id = ?",
+            script_filename,
+            id
+        )
+        .execute(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+
+    // Update name if provided
+    if let Some(name) = &payload.name {
+        sqlx::query!("UPDATE functions SET name = ? WHERE id = ?", name, id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                if e.to_string().contains("UNIQUE constraint failed") {
+                    StatusCode::CONFLICT
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            })?;
+    }
+
+    // Update input tags if provided
+    if let Some(input_tag_ids) = &payload.input_tag_ids {
+        sqlx::query!("DELETE FROM function_input_tags WHERE function_id = ?", id)
+            .execute(&state.db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        for tag_id in input_tag_ids {
+            let _ = sqlx::query!(
+                "INSERT INTO function_input_tags (function_id, tag_id) VALUES (?, ?)",
+                id,
+                tag_id
+            )
+            .execute(&state.db)
+            .await;
+        }
+    }
+
+    // Update output tags if provided
+    if let Some(output_tag_ids) = &payload.output_tag_ids {
+        sqlx::query!("DELETE FROM function_output_tags WHERE function_id = ?", id)
+            .execute(&state.db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        for tag_id in output_tag_ids {
+            let _ = sqlx::query!(
+                "INSERT INTO function_output_tags (function_id, tag_id) VALUES (?, ?)",
+                id,
+                tag_id
+            )
+            .execute(&state.db)
+            .await;
+        }
+    }
+
+    // Return updated function
+    get_function(State(state), Path(id)).await
+}
+
+async fn delete_function(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, StatusCode> {
+    // Get script filename before deleting
+    let _function = sqlx::query!(
+        r#"SELECT script_filename as "script_filename!" FROM functions WHERE id = ?"#,
+        id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Delete from database
+    sqlx::query!("DELETE FROM functions WHERE id = ?", id)
+        .execute(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Delete script file (all versions)
+    if let Ok(mut entries) = tokio::fs::read_dir("scripts").await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.ends_with(&format!("_{}.py", id)) {
+                    let _ = tokio::fs::remove_file(entry.path()).await;
+                }
+            }
+        }
+    }
 
     Ok(StatusCode::NO_CONTENT)
 }

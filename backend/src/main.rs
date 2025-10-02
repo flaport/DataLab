@@ -1,7 +1,9 @@
+mod executor;
 mod models;
 mod routes;
 
 use axum::Router;
+use executor::ScriptExecutor;
 use sqlx::sqlite::SqlitePool;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -10,6 +12,7 @@ use tower_http::trace::TraceLayer;
 
 pub struct AppState {
     db: SqlitePool,
+    executor: ScriptExecutor,
 }
 
 #[tokio::main]
@@ -20,21 +23,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compact()
         .init();
 
-    // Create uploads directory if it doesn't exist
+    // Create necessary directories
     tokio::fs::create_dir_all("uploads").await?;
+    tokio::fs::create_dir_all("scripts").await?;
+    tokio::fs::create_dir_all("output").await?;
 
     // Initialize database
     let database_url = "sqlite:../datalab.db";
     let db = SqlitePool::connect(database_url).await?;
 
     // Run migrations
-    let migrations = include_str!("../migrations/001_init.sql");
-    sqlx::query(migrations).execute(&db).await?;
+    let migration_001 = include_str!("../migrations/001_init.sql");
+    sqlx::query(migration_001).execute(&db).await?;
+    let migration_002 = include_str!("../migrations/002_functions.sql");
+    sqlx::query(migration_002).execute(&db).await?;
 
     tracing::info!("✅ Database initialized");
 
+    // Initialize script executor
+    let executor = ScriptExecutor::new();
+
     // Create shared application state
-    let state = Arc::new(AppState { db });
+    let state = Arc::new(AppState { db, executor });
 
     // Build our application with routes
     let app = Router::new()

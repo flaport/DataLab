@@ -9,8 +9,13 @@ datalab.db
 datalab.db-shm
 datalab.db-wal
 
-# Uploads
+# Uploads and outputs
 uploads/
+output/
+
+# Scripts (versioned in S3/local folder, but gitignored for now)
+scripts/*.py
+!scripts/.gitkeep
 
 # IDE
 .vscode/
