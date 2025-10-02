@@ -140,6 +140,27 @@ export default function DataPage() {
         return new Date(dateString).toLocaleString();
     };
 
+    // Highlight matching substring in filename
+    const highlightMatch = (text: string, query: string) => {
+        if (!query) return text;
+
+        const lowerText = text.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        const index = lowerText.indexOf(lowerQuery);
+
+        if (index === -1) return text;
+
+        return (
+            <>
+                {text.substring(0, index)}
+                <mark className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">
+                    {text.substring(index, index + query.length)}
+                </mark>
+                {text.substring(index + query.length)}
+            </>
+        );
+    };
+
     return (
         <div className="container mx-auto py-8 px-4 max-w-7xl">
             <div className="mb-8">
@@ -257,45 +278,33 @@ export default function DataPage() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     {paginatedUploads.map((upload) => (
                         <Card
                             key={upload.id}
-                            className="p-4 hover:shadow-md transition-shadow"
+                            className="p-3 hover:shadow-md transition-shadow"
                         >
-                            <div className="flex items-start gap-4">
-                                <FileIcon className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+                            <div className="flex items-center gap-3">
+                                <FileIcon className="h-8 w-8 text-blue-600 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-medium text-lg truncate">
-                                        {upload.original_filename}
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2 mt-2 text-sm text-slate-600 dark:text-slate-400">
-                                        <span>{formatFileSize(upload.file_size)}</span>
-                                        <span>•</span>
-                                        <span>{formatDate(upload.created_at)}</span>
-                                        {upload.mime_type && (
-                                            <>
-                                                <span>•</span>
-                                                <span>{upload.mime_type}</span>
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                        {upload.tags.length > 0 ? (
+                                    <div className="flex items-baseline gap-3 flex-wrap">
+                                        <h3 className="font-medium">
+                                            {highlightMatch(upload.original_filename, searchQuery)}
+                                        </h3>
+                                        <span className="text-sm text-slate-500 whitespace-nowrap">
+                                            {formatFileSize(upload.file_size)} •{" "}
+                                            {formatDate(upload.created_at)}
+                                        </span>
+                                        {upload.tags.length > 0 &&
                                             upload.tags.map((tag) => (
                                                 <Badge
                                                     key={tag.id}
                                                     style={{ backgroundColor: tag.color }}
-                                                    className="text-white"
+                                                    className="text-white text-xs"
                                                 >
                                                     {tag.name}
                                                 </Badge>
-                                            ))
-                                        ) : (
-                                            <span className="text-sm text-slate-400 italic">
-                                                No tags
-                                            </span>
-                                        )}
+                                            ))}
                                     </div>
                                 </div>
                             </div>
