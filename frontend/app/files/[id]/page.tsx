@@ -39,6 +39,15 @@ interface FileLineageInfo {
   success: boolean;
 }
 
+interface DerivedFile {
+  output_upload_id: string;
+  output_filename: string;
+  function_id: string;
+  function_name: string;
+  success: boolean;
+  created_at: string;
+}
+
 interface Upload {
   id: string;
   filename: string;
@@ -58,10 +67,12 @@ export default function FileDashboard({
   const { id } = use(params);
   const router = useRouter();
   const [file, setFile] = useState<Upload | null>(null);
+  const [derivedFiles, setDerivedFiles] = useState<DerivedFile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFile();
+    fetchDerivedFiles();
   }, [id]);
 
   const fetchFile = async () => {
@@ -77,6 +88,20 @@ export default function FileDashboard({
       console.error("Failed to fetch file:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDerivedFiles = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/uploads/${id}/derived`,
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setDerivedFiles(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch derived files:", error);
     }
   };
 
@@ -320,6 +345,59 @@ export default function FileDashboard({
           </CardContent>
         </Card>
       </div>
+
+      {/* Derived Files (if any) */}
+      {derivedFiles.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Derived Files</CardTitle>
+            <CardDescription>
+              Files created from this source file by automated functions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {derivedFiles.map((derived) => (
+                <div
+                  key={derived.output_upload_id}
+                  className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() =>
+                    router.push(`/files/${derived.output_upload_id}`)
+                  }
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <FileIcon className="h-5 w-5 text-blue-600" />
+                    <div className="flex-1">
+                      <p className="font-medium">{derived.output_filename}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(derived.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {derived.success ? (
+                      <span className="text-xs text-green-600">✓ Success</span>
+                    ) : (
+                      <span className="text-xs text-red-600">✗ Failed</span>
+                    )}
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto text-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/functions/${derived.function_id}`);
+                      }}
+                    >
+                      <Code className="mr-1 h-3 w-3" />
+                      {derived.function_name}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Content Preview (Placeholder) */}
       <Card className="mt-4">

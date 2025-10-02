@@ -53,6 +53,16 @@ pub struct FileLineageInfo {
     pub success: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DerivedFile {
+    pub output_upload_id: String,
+    pub output_filename: String,
+    pub function_id: String,
+    pub function_name: String,
+    pub success: bool,
+    pub created_at: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UploadResponse {
     pub id: String,

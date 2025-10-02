@@ -1,5 +1,5 @@
 use crate::models::{
-    CreateFunction, CreateTag, Function, Job, Tag, UpdateFunction, UpdateTag, Upload,
+    CreateFunction, CreateTag, DerivedFile, Function, Job, Tag, UpdateFunction, UpdateTag, Upload,
     UploadResponse,
 };
 use crate::AppState;
@@ -21,6 +21,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/uploads/:id", get(get_upload).delete(delete_upload))
         .route("/uploads/:id/tags", post(add_tags_to_upload))
         .route("/uploads/:id/tags/:tag_id", delete(remove_tag_from_upload))
+        .route("/uploads/:id/derived", get(get_derived_files))
         .route("/functions", get(list_functions).post(create_function))
         .route(
             "/functions/:id",
@@ -556,6 +557,46 @@ async fn remove_tag_from_upload(
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn get_derived_files(
+    State(state): State<Arc<AppState>>,
+    Path(upload_id): Path<String>,
+) -> Result<Json<Vec<DerivedFile>>, StatusCode> {
+    let derived = sqlx::query!(
+        r#"
+        SELECT 
+            fl.output_upload_id as "output_upload_id!",
+            fl.function_id as "function_id!",
+            fl.success as "success!",
+            fl.created_at as "created_at!",
+            u.original_filename as "output_filename!",
+            f.name as "function_name!"
+        FROM file_lineage fl
+        INNER JOIN uploads u ON fl.output_upload_id = u.id
+        INNER JOIN functions f ON fl.function_id = f.id
+        WHERE fl.source_upload_id = ?
+        ORDER BY fl.created_at DESC
+        "#,
+        upload_id
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let result = derived
+        .into_iter()
+        .map(|row| DerivedFile {
+            output_upload_id: row.output_upload_id,
+            output_filename: row.output_filename,
+            function_id: row.function_id,
+            function_name: row.function_name,
+            success: row.success != 0,
+            created_at: row.created_at,
+        })
+        .collect();
+
+    Ok(Json(result))
 }
 
 // ============= FUNCTIONS =============
