@@ -21,6 +21,8 @@ import {
   BarChart3,
   FileText,
   Download,
+  Code,
+  ArrowRight,
 } from "lucide-react";
 
 interface Tag {
@@ -30,7 +32,9 @@ interface Tag {
 }
 
 interface FileLineageInfo {
+  source_upload_id: string;
   source_filename: string;
+  function_id: string;
   function_name: string;
   success: boolean;
 }
@@ -135,6 +139,43 @@ export default function FileDashboard({
 
       <Separator className="mb-8" />
 
+      {/* Lineage Banner (if file was generated) */}
+      {file.lineage && (
+        <div className="mb-4 p-3 border rounded-md bg-muted/50">
+          <div className="flex items-center gap-2 text-sm flex-wrap">
+            {file.lineage.success ? (
+              <span className="text-green-600 font-medium">
+                ✓ Generated from
+              </span>
+            ) : (
+              <span className="text-red-600 font-medium">✗ Error log from</span>
+            )}
+            <Button
+              variant="link"
+              className="p-0 h-auto font-medium text-sm"
+              onClick={() =>
+                router.push(`/files/${file.lineage!.source_upload_id}`)
+              }
+            >
+              <FileIcon className="mr-1 h-4 w-4" />
+              {file.lineage.source_filename}
+            </Button>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <Code className="h-4 w-4 text-muted-foreground" />
+            <span>via</span>
+            <Button
+              variant="link"
+              className="p-0 h-auto text-sm"
+              onClick={() =>
+                router.push(`/functions/${file.lineage!.function_id}`)
+              }
+            >
+              {file.lineage.function_name}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Metadata Cards Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         {/* File Size */}
@@ -202,48 +243,6 @@ export default function FileDashboard({
 
       {/* Detail Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Lineage Card (if file was generated) */}
-        {file.lineage && (
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {file.lineage.success ? (
-                  <span className="text-green-600">✓ Generated File</span>
-                ) : (
-                  <span className="text-red-600">✗ Error Log</span>
-                )}
-              </CardTitle>
-              <CardDescription>
-                This file was created by an automated function
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Source File:</span>
-                <span className="text-sm text-muted-foreground">
-                  {file.lineage.source_filename}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Function:</span>
-                <span className="text-sm text-muted-foreground">
-                  {file.lineage.function_name}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Status:</span>
-                <span
-                  className={`text-sm font-medium ${file.lineage.success ? "text-green-600" : "text-red-600"}`}
-                >
-                  {file.lineage.success ? "Success" : "Failed"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* File Information */}
         <Card>
           <CardHeader>

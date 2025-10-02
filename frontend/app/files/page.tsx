@@ -34,7 +34,9 @@ interface Tag {
 }
 
 interface FileLineageInfo {
+  source_upload_id: string;
   source_filename: string;
+  function_id: string;
   function_name: string;
   success: boolean;
 }

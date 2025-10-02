@@ -46,7 +46,9 @@ pub struct Upload {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileLineageInfo {
+    pub source_upload_id: String,
     pub source_filename: String,
+    pub function_id: String,
     pub function_name: String,
     pub success: bool,
 }

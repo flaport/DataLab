@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT \n                fl.success as \"success!\",\n                fl.source_upload_id as \"source_upload_id!\",\n                fl.function_id as \"function_id!\",\n                u.original_filename as \"source_filename!\",\n                f.name as \"function_name!\"\n            FROM file_lineage fl\n            INNER JOIN uploads u ON fl.source_upload_id = u.id\n            INNER JOIN functions f ON fl.function_id = f.id\n            WHERE fl.output_upload_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "success!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "source_upload_id!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "function_id!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "source_filename!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "function_name!",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c1dfbb18feb1d54f0cd2cd59ff499fa874ef89f84909d4235b5838165c99d955"
+}

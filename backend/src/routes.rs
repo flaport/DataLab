@@ -373,6 +373,8 @@ async fn list_uploads(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Upl
             r#"
             SELECT 
                 fl.success as "success!",
+                fl.source_upload_id as "source_upload_id!",
+                fl.function_id as "function_id!",
                 u.original_filename as "source_filename!",
                 f.name as "function_name!"
             FROM file_lineage fl
@@ -387,7 +389,9 @@ async fn list_uploads(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Upl
         .ok()
         .flatten()
         .map(|row| crate::models::FileLineageInfo {
+            source_upload_id: row.source_upload_id,
             source_filename: row.source_filename,
+            function_id: row.function_id,
             function_name: row.function_name,
             success: row.success != 0,
         });
@@ -449,6 +453,8 @@ async fn get_upload(
         r#"
         SELECT 
             fl.success as "success!",
+            fl.source_upload_id as "source_upload_id!",
+            fl.function_id as "function_id!",
             u.original_filename as "source_filename!",
             f.name as "function_name!"
         FROM file_lineage fl
@@ -463,7 +469,9 @@ async fn get_upload(
     .ok()
     .flatten()
     .map(|row| crate::models::FileLineageInfo {
+        source_upload_id: row.source_upload_id,
         source_filename: row.source_filename,
+        function_id: row.function_id,
         function_name: row.function_name,
         success: row.success != 0,
     });
