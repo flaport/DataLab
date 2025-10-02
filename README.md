@@ -205,6 +205,11 @@ The frontend uses:
 
 - ✅ **Unified Files view** with integrated upload modal
 - ✅ Drag-and-drop file upload with tag selection
+- ✅ **Individual file dashboards** - Click any file to view detailed metadata
+  - File information cards (size, type, upload date, tags)
+  - Statistics dashboard with placeholder for future analytics
+  - Content preview area (coming soon)
+  - Download functionality
 - ✅ Tag management with color coding and edit functionality
 - ✅ File organization with tags
 - ✅ **Automatic file extension tagging** - Files are automatically tagged with their extension (e.g., `.pdf`, `.csv`)
