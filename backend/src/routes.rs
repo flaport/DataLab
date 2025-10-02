@@ -320,7 +320,7 @@ async fn upload_file(
     // Trigger function execution in the background
     let upload_id_clone = id.clone();
     let state_clone = state.clone();
-    trigger_functions_for_upload(state_clone, upload_id_clone).await;
+    trigger_functions_for_upload(state_clone, upload_id_clone);
 
     Ok((
         StatusCode::CREATED,
@@ -538,7 +538,7 @@ async fn add_tags_to_upload(
     // Trigger function execution in the background
     let upload_id_clone = id.clone();
     let state_clone = state.clone();
-    trigger_functions_for_upload(state_clone, upload_id_clone).await;
+    trigger_functions_for_upload(state_clone, upload_id_clone);
 
     Ok(StatusCode::OK)
 }
@@ -602,7 +602,7 @@ async fn get_derived_files(
 // ============= FUNCTIONS =============
 
 // Helper function to trigger function execution for an upload
-async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
+fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
     tokio::spawn(async move {
         // Fetch the upload with its tags
         let upload = match sqlx::query!(
@@ -651,7 +651,21 @@ async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
             // Check if upload has all input tags
             let has_all_tags = input_tags.iter().all(|tag| upload_tags.contains(tag));
 
+            tracing::debug!(
+                "Function {} check: input_tags={:?}, upload_tags={:?}, match={}",
+                function.id,
+                input_tags,
+                upload_tags,
+                has_all_tags
+            );
+
             if has_all_tags && !input_tags.is_empty() {
+                tracing::info!(
+                    "MATCH! Triggering function {} for upload {}",
+                    function.id,
+                    upload_id
+                );
+
                 // Create job record
                 let job_id = Uuid::new_v4().to_string();
                 let job_created_at = chrono::Utc::now().to_rfc3339();
@@ -819,12 +833,12 @@ async fn execute_job(
                             .await
                             {
                                 let _ = sqlx::query!(
-                                                "INSERT OR IGNORE INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
-                                                new_id,
-                                                tag.id
-                                            )
-                                            .execute(&state.db)
-                                            .await;
+                                    "INSERT OR IGNORE INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+                                    new_id,
+                                    tag.id
+                                )
+                                .execute(&state.db)
+                                .await;
                             }
                         }
                     }
@@ -833,18 +847,18 @@ async fn execute_job(
                     let lineage_id = Uuid::new_v4().to_string();
                     let lineage_success = if is_error_log { 0 } else { 1 };
                     let _ = sqlx::query!(
-                                    "INSERT INTO file_lineage (id, output_upload_id, source_upload_id, function_id, success, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                                    lineage_id,
-                                    new_id,
-                                    upload_id,
-                                    function_id,
-                                    lineage_success,
-                                    created_at
-                                )
-                                .execute(&state.db)
-                                .await;
+                        "INSERT INTO file_lineage (id, output_upload_id, source_upload_id, function_id, success, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                        lineage_id,
+                        new_id,
+                        upload_id,
+                        function_id,
+                        lineage_success,
+                        created_at
+                    )
+                    .execute(&state.db)
+                    .await;
 
-                    output_upload_ids.push(new_id);
+                    output_upload_ids.push(new_id.clone());
                     tracing::info!(
                         "Created output file: {} (success: {})",
                         output_file,
@@ -866,7 +880,24 @@ async fn execute_job(
             .execute(&state.db)
             .await;
 
-            tracing::info!("Job {} completed successfully", job_id);
+            tracing::info!(
+                "Job {} completed successfully with {} outputs",
+                job_id,
+                output_upload_ids.len()
+            );
+
+            // Trigger functions for ALL newly created output files (enables chaining)
+            for output_id in &output_upload_ids {
+                tracing::info!("Checking triggers for output file: {}", output_id);
+                let state_clone = state.clone();
+                let output_id_clone = output_id.clone();
+
+                // Delay slightly to ensure DB commits are visible
+                tokio::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    trigger_functions_for_upload(state_clone, output_id_clone);
+                });
+            }
         }
         Err(e) => {
             let error_message = e.to_string();

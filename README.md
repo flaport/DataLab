@@ -365,11 +365,13 @@ df.to_json(output_path, orient="records", indent=2)
 4. Function runs automatically when:
    - A file is uploaded with ALL input tags
    - Tags are added to existing file matching ALL input tags
+   - **A derived file is created** with matching tags (enables chaining!)
 5. Output files are saved to `uploads/` with:
    - **Success**: Output tags + extension tag
    - **Failure**: Extension tag (.log) only
 6. Lineage records track source → function → output relationships
 7. File cards show "✓ From source.csv via Function Name" for generated files
+8. **Processing chains**: Output files can trigger more functions, creating pipelines
 
 **Environment Variables:**
 
