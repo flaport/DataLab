@@ -4,7 +4,20 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Upload as UploadIcon, X, FileIcon, Trash2 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    Upload as UploadIcon,
+    X,
+    FileIcon,
+    Trash2,
+    Tag as TagIcon,
+} from "lucide-react";
 
 interface Tag {
     id: string;
@@ -30,6 +43,8 @@ export default function UploadPage() {
     const [dragActive, setDragActive] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [editingUpload, setEditingUpload] = useState<Upload | null>(null);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
 
     useEffect(() => {
         fetchUploads();
@@ -140,6 +155,56 @@ export default function UploadPage() {
         const sizes = ["Bytes", "KB", "MB", "GB"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+    };
+
+    const openEditDialog = (upload: Upload) => {
+        setEditingUpload(upload);
+        setEditDialogOpen(true);
+    };
+
+    const toggleTagForUpload = async (tagId: string) => {
+        if (!editingUpload) return;
+
+        const hasTag = editingUpload.tags.some((t) => t.id === tagId);
+
+        try {
+            if (hasTag) {
+                // Remove tag
+                const response = await fetch(
+                    `http://localhost:8080/api/uploads/${editingUpload.id}/tags/${tagId}`,
+                    { method: "DELETE" },
+                );
+                if (response.ok) {
+                    setEditingUpload({
+                        ...editingUpload,
+                        tags: editingUpload.tags.filter((t) => t.id !== tagId),
+                    });
+                    fetchUploads();
+                }
+            } else {
+                // Add tag
+                const response = await fetch(
+                    `http://localhost:8080/api/uploads/${editingUpload.id}/tags`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify([tagId]),
+                    },
+                );
+                if (response.ok) {
+                    const tag = tags.find((t) => t.id === tagId);
+                    if (tag) {
+                        setEditingUpload({
+                            ...editingUpload,
+                            tags: [...editingUpload.tags, tag],
+                        });
+                        fetchUploads();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Failed to update tags:", error);
+        }
     };
 
     return (
@@ -272,19 +337,78 @@ export default function UploadPage() {
                                             ))}
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => deleteUpload(upload.id)}
-                                    >
-                                        <Trash2 className="h-4 w-4 text-red-500" />
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openEditDialog(upload)}
+                                            title="Manage tags"
+                                        >
+                                            <TagIcon className="h-4 w-4 text-blue-600" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => deleteUpload(upload.id)}
+                                            title="Delete upload"
+                                        >
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                        </Button>
+                                    </div>
                                 </div>
                             </Card>
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Edit Tags Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Manage Tags</DialogTitle>
+                        <DialogDescription>
+                            {editingUpload?.original_filename}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {tags.length === 0 ? (
+                            <p className="text-center text-slate-600 dark:text-slate-400 py-8">
+                                No tags available. Create tags in the Tags page first.
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium mb-3">
+                                    Click tags to add or remove them:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {tags.map((tag) => {
+                                        const isSelected = editingUpload?.tags.some(
+                                            (t) => t.id === tag.id,
+                                        );
+                                        return (
+                                            <Badge
+                                                key={tag.id}
+                                                style={{
+                                                    backgroundColor: isSelected
+                                                        ? tag.color
+                                                        : "transparent",
+                                                    color: isSelected ? "white" : tag.color,
+                                                    borderColor: tag.color,
+                                                }}
+                                                className="cursor-pointer border-2 transition-all hover:scale-105"
+                                                onClick={() => toggleTagForUpload(tag.id)}
+                                            >
+                                                {tag.name}
+                                            </Badge>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
