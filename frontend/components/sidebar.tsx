@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Tags, Files, Code } from "lucide-react";
+import { Tags, Files, Code, ListTodo } from "lucide-react";
 
 const navigation = [
     { name: "Files", href: "/files", icon: Files },
     { name: "Functions", href: "/functions", icon: Code },
+    { name: "Jobs", href: "/jobs", icon: ListTodo },
     { name: "Tags", href: "/tags", icon: Tags },
 ];
 

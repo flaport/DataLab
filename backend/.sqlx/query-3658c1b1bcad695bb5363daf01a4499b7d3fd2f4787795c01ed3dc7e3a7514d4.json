@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT \n            id as \"id!\", \n            upload_id as \"upload_id!\", \n            function_id as \"function_id!\", \n            status as \"status!\", \n            error_message, \n            output_upload_ids, \n            created_at as \"created_at!\", \n            started_at, \n            completed_at \n        FROM jobs \n        ORDER BY created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "upload_id!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "function_id!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "status!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "error_message",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "output_upload_ids",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "started_at",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "completed_at",
+        "ordinal": 8,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "3658c1b1bcad695bb5363daf01a4499b7d3fd2f4787795c01ed3dc7e3a7514d4"
+}

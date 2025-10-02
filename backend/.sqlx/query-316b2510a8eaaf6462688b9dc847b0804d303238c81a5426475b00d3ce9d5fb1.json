@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE jobs SET status = ?, output_upload_ids = ?, completed_at = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "316b2510a8eaaf6462688b9dc847b0804d303238c81a5426475b00d3ce9d5fb1"
+}

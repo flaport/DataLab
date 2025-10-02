@@ -7,12 +7,14 @@ use executor::ScriptExecutor;
 use sqlx::sqlite::SqlitePool;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 pub struct AppState {
     db: SqlitePool,
     executor: ScriptExecutor,
+    execution_semaphore: Arc<Semaphore>,
 }
 
 #[tokio::main]
@@ -39,14 +41,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sqlx::query(migration_002).execute(&db).await?;
     let migration_003 = include_str!("../migrations/003_file_lineage.sql");
     sqlx::query(migration_003).execute(&db).await?;
+    let migration_004 = include_str!("../migrations/004_jobs.sql");
+    sqlx::query(migration_004).execute(&db).await?;
 
     tracing::info!("✅ Database initialized");
 
     // Initialize script executor
     let executor = ScriptExecutor::new();
 
+    // Create execution semaphore (limit concurrent function executions)
+    let max_concurrent_executions = 10; // Configurable limit
+    let execution_semaphore = Arc::new(Semaphore::new(max_concurrent_executions));
+    tracing::info!(
+        "✅ Execution semaphore initialized (max concurrent: {})",
+        max_concurrent_executions
+    );
+
     // Create shared application state
-    let state = Arc::new(AppState { db, executor });
+    let state = Arc::new(AppState {
+        db,
+        executor,
+        execution_semaphore,
+    });
 
     // Build our application with routes
     let app = Router::new()

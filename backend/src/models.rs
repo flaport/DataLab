@@ -90,3 +90,21 @@ pub struct UpdateFunction {
     pub input_tag_ids: Option<Vec<String>>,
     pub output_tag_ids: Option<Vec<String>>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Job {
+    pub id: String,
+    pub upload_id: String,
+    pub function_id: String,
+    pub status: String, // SUBMITTED, RUNNING, SUCCESS, FAILED
+    pub error_message: Option<String>,
+    pub output_upload_ids: Vec<String>,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    // Populated from joins
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upload_filename: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_name: Option<String>,
+}

@@ -109,9 +109,14 @@ Backend runs on `http://localhost:8080`:
 
 - `GET /api/functions` - List all functions
 - `POST /api/functions` - Create a new function
-- `GET /api/functions/:id` - Get a specific function
+- `GET /api/functions/:id` - Get a specific function (includes script content)
 - `PUT /api/functions/:id` - Update a function
 - `DELETE /api/functions/:id` - Delete a function
+
+### Jobs
+
+- `GET /api/jobs` - List all jobs with status
+- `GET /api/jobs/:id` - Get a specific job
 
 ## 🏗️ Development
 
@@ -298,6 +303,9 @@ The frontend uses:
   - Output files automatically registered with output tags
   - Failed executions create log files
   - Script versioning by timestamp
+  - **Semaphore-based rate limiting** (max 10 concurrent executions)
+  - **Job tracking** with status (SUBMITTED, RUNNING, SUCCESS, FAILED)
+  - Live job monitoring with auto-refresh
 - ✅ Tag management with color coding and edit functionality
 - ✅ File organization with tags
 - ✅ **Automatic file extension tagging** - Files are automatically tagged with their extension (e.g., `.pdf`, `.csv`)
