@@ -53,7 +53,7 @@ DataLab/
    cargo run
    ```
 
-   The backend will start on `http://localhost:8000`
+   The backend will start on `http://localhost:8080`
 
 ### Frontend Setup
 
@@ -93,6 +93,8 @@ npm run dev
 Then open your browser and navigate to `http://localhost:3000`
 
 ## 📡 API Endpoints
+
+Backend runs on `http://localhost:8080`:
 
 - `GET /` - Root endpoint (returns welcome message)
 - `GET /health` - Health check endpoint

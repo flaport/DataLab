@@ -33,7 +33,7 @@ async fn main() {
         .layer(TraceLayer::new_for_http());
 
     // Run the server
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     tracing::info!("🚀 Server starting on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

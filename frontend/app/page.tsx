@@ -26,7 +26,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:8000/health");
+      const response = await fetch("http://localhost:8080/health");
       if (!response.ok) {
         throw new Error("Backend not responding");
       }
@@ -106,7 +106,7 @@ export default function Home() {
                     Frontend: http://localhost:3000
                   </p>
                   <p className="text-xs font-mono">
-                    Backend: http://localhost:8000
+                    Backend: http://localhost:8080
                   </p>
                 </div>
               )}

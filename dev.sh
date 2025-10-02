@@ -32,7 +32,7 @@ FRONTEND_PID=$!
 echo ""
 echo "✅ DataLab is running!"
 echo ""
-echo "📡 Backend:  http://localhost:8000"
+echo "📡 Backend:  http://localhost:8080"
 echo "🌐 Frontend: http://localhost:3000"
 echo ""
 echo "Press Ctrl+C to stop all servers"
