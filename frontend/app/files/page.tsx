@@ -22,7 +22,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { FileCard } from "@/components/file-card";
-import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { UploadDialog } from "@/components/upload-dialog";
+import { Search, X, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 
 interface Tag {
     id: string;
@@ -57,6 +58,9 @@ export default function DataPage() {
     // Tag editing
     const [editingUpload, setEditingUpload] = useState<Upload | null>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+    // Upload
+    const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -239,11 +243,17 @@ export default function DataPage() {
 
     return (
         <div className="container mx-auto py-8 px-4 max-w-7xl">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold">Files</h1>
-                <p className="text-slate-600 dark:text-slate-400 mt-1">
-                    Browse and filter all uploaded files
-                </p>
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold">Files</h1>
+                    <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        Browse and filter all uploaded files
+                    </p>
+                </div>
+                <Button onClick={() => setUploadDialogOpen(true)} size="lg">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload File
+                </Button>
             </div>
 
             {/* Filters */}
@@ -432,6 +442,14 @@ export default function DataPage() {
                     </Button>
                 </div>
             )}
+
+            {/* Upload Dialog */}
+            <UploadDialog
+                open={uploadDialogOpen}
+                onOpenChange={setUploadDialogOpen}
+                tags={tags}
+                onSuccess={fetchData}
+            />
 
             {/* Edit Tags Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

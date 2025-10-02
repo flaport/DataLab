@@ -203,18 +203,21 @@ The frontend uses:
 
 ## ✨ Features
 
-- ✅ Drag-and-drop file upload
-- ✅ Tag management with color coding
+- ✅ **Unified Files view** with integrated upload modal
+- ✅ Drag-and-drop file upload with tag selection
+- ✅ Tag management with color coding and edit functionality
 - ✅ File organization with tags
 - ✅ **Automatic file extension tagging** - Files are automatically tagged with their extension (e.g., `.pdf`, `.csv`)
   - Extension tags can have their color changed but cannot be renamed
   - Extension tags can only be deleted when not in use by any files
-- ✅ Data browser with filtering and pagination
+- ✅ File browser with filtering and pagination
   - Filter by filename (substring search with highlighting)
   - Filter by tags (multiple selection)
   - Paginated view (25/50/100/250 items per page)
+  - Tag management directly from file list
 - ✅ SQLite database with compile-time type checking
 - ✅ Modern, responsive UI with shadcn/ui
+- ✅ Error handling with user-friendly messages
 
 ## 📝 Roadmap
 
