@@ -1241,6 +1241,20 @@ async fn list_jobs(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Job>>,
             .and_then(|s| serde_json::from_str(s).ok())
             .unwrap_or_default();
 
+        // Fetch output filenames
+        let mut output_filenames = Vec::new();
+        for output_id in &output_upload_ids {
+            if let Ok(Some(upload)) = sqlx::query!(
+                r#"SELECT original_filename as "original_filename!" FROM uploads WHERE id = ?"#,
+                output_id
+            )
+            .fetch_optional(&state.db)
+            .await
+            {
+                output_filenames.push(upload.original_filename);
+            }
+        }
+
         result.push(Job {
             id: job_row.id,
             upload_id: job_row.upload_id,
@@ -1253,6 +1267,7 @@ async fn list_jobs(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Job>>,
             completed_at: job_row.completed_at,
             upload_filename,
             function_name,
+            output_filenames,
         });
     }
 
@@ -1323,6 +1338,20 @@ async fn get_job(
         .and_then(|s| serde_json::from_str(s).ok())
         .unwrap_or_default();
 
+    // Fetch output filenames
+    let mut output_filenames = Vec::new();
+    for output_id in &output_upload_ids {
+        if let Ok(Some(upload)) = sqlx::query!(
+            r#"SELECT original_filename as "original_filename!" FROM uploads WHERE id = ?"#,
+            output_id
+        )
+        .fetch_optional(&state.db)
+        .await
+        {
+            output_filenames.push(upload.original_filename);
+        }
+    }
+
     Ok(Json(Job {
         id: job_row.id,
         upload_id: job_row.upload_id,
@@ -1335,5 +1364,6 @@ async fn get_job(
         completed_at: job_row.completed_at,
         upload_filename,
         function_name,
+        output_filenames,
     }))
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     CheckCircle2,
     XCircle,
@@ -11,6 +13,7 @@ import {
     FileIcon,
     Code,
     ArrowRight,
+    ExternalLink,
 } from "lucide-react";
 
 interface Job {
@@ -25,9 +28,11 @@ interface Job {
     completed_at: string | null;
     upload_filename?: string;
     function_name?: string;
+    output_filenames: string[];
 }
 
 export default function JobsPage() {
+    const router = useRouter();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -196,16 +201,45 @@ export default function JobsPage() {
                                     {getStatusBadge(job.status)}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-2">
+                                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                                         <FileIcon className="h-4 w-4 text-blue-600" />
-                                        <span className="font-medium">
+                                        <Button
+                                            variant="link"
+                                            className="p-0 h-auto font-medium"
+                                            onClick={() => router.push(`/files/${job.upload_id}`)}
+                                        >
                                             {job.upload_filename || "Unknown file"}
-                                        </span>
+                                            <ExternalLink className="ml-1 h-3 w-3" />
+                                        </Button>
                                         <ArrowRight className="h-4 w-4 text-slate-400" />
                                         <Code className="h-4 w-4 text-blue-600" />
-                                        <span className="text-sm text-slate-600">
+                                        <Button
+                                            variant="link"
+                                            className="p-0 h-auto text-sm text-slate-600"
+                                            onClick={() => router.push(`/functions`)}
+                                        >
                                             {job.function_name || "Unknown function"}
-                                        </span>
+                                            <ExternalLink className="ml-1 h-3 w-3" />
+                                        </Button>
+                                        {job.output_upload_ids.length > 0 && (
+                                            <>
+                                                <ArrowRight className="h-4 w-4 text-slate-400" />
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {job.output_upload_ids.map((outputId, idx) => (
+                                                        <Button
+                                                            key={outputId}
+                                                            variant="link"
+                                                            className="p-0 h-auto text-sm text-green-600"
+                                                            onClick={() => router.push(`/files/${outputId}`)}
+                                                        >
+                                                            <FileIcon className="mr-1 h-3 w-3" />
+                                                            {job.output_filenames[idx] || `Output ${idx + 1}`}
+                                                            <ExternalLink className="ml-1 h-3 w-3" />
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-4 text-sm text-slate-600">
                                         <span>
@@ -215,12 +249,6 @@ export default function JobsPage() {
                                             <span>
                                                 Duration:{" "}
                                                 {formatDuration(job.started_at, job.completed_at)}
-                                            </span>
-                                        )}
-                                        {job.output_upload_ids.length > 0 && (
-                                            <span>
-                                                Outputs: {job.output_upload_ids.length} file
-                                                {job.output_upload_ids.length !== 1 ? "s" : ""}
                                             </span>
                                         )}
                                     </div>

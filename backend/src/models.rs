@@ -107,4 +107,6 @@ pub struct Job {
     pub upload_filename: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_name: Option<String>,
+    #[serde(default)]
+    pub output_filenames: Vec<String>,
 }
