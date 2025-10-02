@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -50,17 +51,22 @@ interface Upload {
 }
 
 export default function DataPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
+  // Initialize from URL params
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(100);
+  const [currentPage, setCurrentPage] = useState(
+    parseInt(searchParams.get("page") || "1"),
+  );
+  const [itemsPerPage, setItemsPerPage] = useState(
+    parseInt(searchParams.get("per_page") || "100"),
+  );
 
   // Tag editing
   const [editingUpload, setEditingUpload] = useState<Upload | null>(null);
@@ -72,6 +78,40 @@ export default function DataPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Initialize selected tags from URL after tags are loaded
+  useEffect(() => {
+    const tagNamesFromUrl =
+      searchParams.get("tags")?.split("+").filter(Boolean) || [];
+    if (tagNamesFromUrl.length > 0 && tags.length > 0) {
+      const tagIds = tags
+        .filter((tag) => tagNamesFromUrl.includes(tag.name))
+        .map((tag) => tag.id);
+      setSelectedTags(tagIds);
+    }
+  }, [tags, searchParams]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (searchQuery) params.set("q", searchQuery);
+
+    // Use tag names with + separator (URL-safe, no encoding needed)
+    if (selectedTags.length > 0) {
+      const tagNames = tags
+        .filter((tag) => selectedTags.includes(tag.id))
+        .map((tag) => tag.name)
+        .join("+");
+      if (tagNames) params.set("tags", tagNames);
+    }
+
+    if (currentPage !== 1) params.set("page", currentPage.toString());
+    if (itemsPerPage !== 100) params.set("per_page", itemsPerPage.toString());
+
+    const newUrl = params.toString() ? `?${params.toString()}` : "/files";
+    router.replace(newUrl, { scroll: false });
+  }, [searchQuery, selectedTags, currentPage, itemsPerPage, router, tags]);
 
   const fetchData = async () => {
     setLoading(true);

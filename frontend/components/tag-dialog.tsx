@@ -60,6 +60,14 @@ export function TagDialog({
     const handleSave = async () => {
         if (!name.trim()) return;
 
+        // Validate tag name doesn't contain forbidden character
+        if (name.includes("+")) {
+            setError(
+                "Tag names cannot contain the '+' character (reserved for URL separator)",
+            );
+            return;
+        }
+
         setSaving(true);
         setError(null);
 
@@ -92,6 +100,10 @@ export function TagDialog({
                 );
             } else if (response.status === 403) {
                 setError("Extension tags cannot be renamed.");
+            } else if (response.status === 400) {
+                setError(
+                    "Tag names cannot contain the '+' character (reserved for URL separator).",
+                );
             } else {
                 setError(`Failed to ${mode} tag. Please try again.`);
             }
@@ -155,8 +167,8 @@ export function TagDialog({
                                     key={color}
                                     onClick={() => setSelectedColor(color)}
                                     className={`h-8 w-8 rounded-md transition-all ${selectedColor === color
-                                        ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100"
-                                        : ""
+                                            ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100"
+                                            : ""
                                         }`}
                                     style={{ backgroundColor: color }}
                                     type="button"

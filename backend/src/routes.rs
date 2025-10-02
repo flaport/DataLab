@@ -60,6 +60,11 @@ async fn create_tag(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateTag>,
 ) -> Result<(StatusCode, Json<Tag>), StatusCode> {
+    // Validate tag name doesn't contain forbidden character
+    if payload.name.contains('+') {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     let id = Uuid::new_v4().to_string();
     let created_at = chrono::Utc::now().to_rfc3339();
 
@@ -130,6 +135,10 @@ async fn update_tag(
     if let Some(name) = &payload.name {
         if is_extension_tag {
             return Err(StatusCode::FORBIDDEN); // 403 Forbidden - cannot rename extension tags
+        }
+        // Validate tag name doesn't contain forbidden character
+        if name.contains('+') {
+            return Err(StatusCode::BAD_REQUEST);
         }
         sqlx::query!("UPDATE tags SET name = ? WHERE id = ?", name, id)
             .execute(&state.db)
