@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Upload, Tags } from "lucide-react";
+import { Upload, Tags, Database } from "lucide-react";
 
 const navigation = [
     { name: "Upload", href: "/upload", icon: Upload },
+    { name: "Data", href: "/data", icon: Database },
     { name: "Tags", href: "/tags", icon: Tags },
 ];
 

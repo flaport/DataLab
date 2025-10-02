@@ -206,6 +206,10 @@ The frontend uses:
 - ✅ Drag-and-drop file upload
 - ✅ Tag management with color coding
 - ✅ File organization with tags
+- ✅ Data browser with filtering and pagination
+  - Filter by filename (fuzzy search)
+  - Filter by tags (multiple selection)
+  - Paginated view (25/50/100/250 items per page)
 - ✅ SQLite database with compile-time type checking
 - ✅ Modern, responsive UI with shadcn/ui
 

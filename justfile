@@ -23,7 +23,7 @@ frontend:
     cd frontend && npm run dev
 
 # Run both backend and frontend in parallel
-dev:
+dev: kill-ports
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🚀 Starting DataLab..."
