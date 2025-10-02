@@ -2,25 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { TagDialog } from "@/components/tag-dialog";
+import { Plus, Trash2, Pencil } from "lucide-react";
 
 interface Tag {
     id: string;
     name: string;
     color: string;
     created_at: string;
+    usage_count?: number;
 }
 
 const COLORS = [
@@ -46,8 +37,8 @@ export default function TagsPage() {
     const [tags, setTags] = useState<Tag[]>([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [newTagName, setNewTagName] = useState("");
-    const [selectedColor, setSelectedColor] = useState(COLORS[0]);
+    const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+    const [editingTag, setEditingTag] = useState<Tag | undefined>();
 
     useEffect(() => {
         fetchTags();
@@ -55,10 +46,24 @@ export default function TagsPage() {
 
     const fetchTags = async () => {
         try {
-            const response = await fetch("http://localhost:8080/api/tags");
-            if (response.ok) {
-                const data = await response.json();
-                setTags(data);
+            const [tagsRes, uploadsRes] = await Promise.all([
+                fetch("http://localhost:8080/api/tags"),
+                fetch("http://localhost:8080/api/uploads"),
+            ]);
+
+            if (tagsRes.ok && uploadsRes.ok) {
+                const tagsData = await tagsRes.json();
+                const uploadsData = await uploadsRes.json();
+
+                // Calculate usage count for each tag
+                const tagsWithUsage = tagsData.map((tag: Tag) => {
+                    const usage_count = uploadsData.filter((upload: any) =>
+                        upload.tags.some((t: any) => t.id === tag.id),
+                    ).length;
+                    return { ...tag, usage_count };
+                });
+
+                setTags(tagsWithUsage);
             }
         } catch (error) {
             console.error("Failed to fetch tags:", error);
@@ -67,32 +72,31 @@ export default function TagsPage() {
         }
     };
 
-    const createTag = async () => {
-        if (!newTagName.trim()) return;
-
-        try {
-            const response = await fetch("http://localhost:8080/api/tags", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: newTagName, color: selectedColor }),
-            });
-
-            if (response.ok) {
-                setNewTagName("");
-                setSelectedColor(COLORS[0]);
-                setDialogOpen(false);
-                fetchTags();
-            }
-        } catch (error) {
-            console.error("Failed to create tag:", error);
-        }
+    const openCreateDialog = () => {
+        setDialogMode("create");
+        setEditingTag(undefined);
+        setDialogOpen(true);
     };
 
-    const deleteTag = async (id: string) => {
+    const openEditDialog = (tag: Tag) => {
+        setDialogMode("edit");
+        setEditingTag(tag);
+        setDialogOpen(true);
+    };
+
+    const deleteTag = async (id: string, event: React.MouseEvent) => {
+        event.stopPropagation(); // Prevent triggering edit when clicking delete
         try {
             const response = await fetch(`http://localhost:8080/api/tags/${id}`, {
                 method: "DELETE",
             });
+
+            if (response.status === 409) {
+                alert(
+                    "Cannot delete this tag - it's still being used by uploaded files. Remove it from all files first.",
+                );
+                return;
+            }
 
             if (response.ok) {
                 fetchTags();
@@ -112,56 +116,10 @@ export default function TagsPage() {
                     </p>
                 </div>
 
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create Tag
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create New Tag</DialogTitle>
-                            <DialogDescription>
-                                Add a new tag to organize your uploads
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Tag Name</Label>
-                                <Input
-                                    id="name"
-                                    placeholder="e.g., Important, Research, Draft"
-                                    value={newTagName}
-                                    onChange={(e) => setNewTagName(e.target.value)}
-                                    onKeyPress={(e) => e.key === "Enter" && createTag()}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Color</Label>
-                                <div className="grid grid-cols-8 gap-2">
-                                    {COLORS.map((color) => (
-                                        <button
-                                            key={color}
-                                            onClick={() => setSelectedColor(color)}
-                                            className={`h-8 w-8 rounded-md transition-all ${selectedColor === color
-                                                    ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100"
-                                                    : ""
-                                                }`}
-                                            style={{ backgroundColor: color }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button onClick={createTag}>Create Tag</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <Button onClick={openCreateDialog}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Tag
+                </Button>
             </div>
 
             {loading ? (
@@ -176,29 +134,70 @@ export default function TagsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tags.map((tag) => (
-                        <div
-                            key={tag.id}
-                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
-                        >
-                            <Badge
-                                style={{ backgroundColor: tag.color }}
-                                className="text-white"
+                    {tags.map((tag) => {
+                        const inUse = (tag.usage_count ?? 0) > 0;
+                        return (
+                            <div
+                                key={tag.id}
+                                className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                                onClick={() => openEditDialog(tag)}
                             >
-                                {tag.name}
-                            </Badge>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteTag(tag.id)}
-                                className="h-8 w-8"
-                            >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                        </div>
-                    ))}
+                                <div className="flex-1">
+                                    <Badge
+                                        style={{ backgroundColor: tag.color }}
+                                        className="text-white"
+                                    >
+                                        {tag.name}
+                                    </Badge>
+                                    {inUse && (
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Used by {tag.usage_count} file
+                                            {tag.usage_count !== 1 ? "s" : ""}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            openEditDialog(tag);
+                                        }}
+                                        className="h-8 w-8"
+                                        title="Edit tag"
+                                    >
+                                        <Pencil className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => deleteTag(tag.id, e)}
+                                        className="h-8 w-8"
+                                        title={
+                                            inUse ? "Cannot delete - tag is in use" : "Delete tag"
+                                        }
+                                        disabled={inUse}
+                                    >
+                                        <Trash2
+                                            className={`h-4 w-4 ${inUse ? "text-slate-300" : "text-red-500"}`}
+                                        />
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
+
+            <TagDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                mode={dialogMode}
+                tag={editingTag}
+                colors={COLORS}
+                onSuccess={fetchTags}
+            />
         </div>
     );
 }

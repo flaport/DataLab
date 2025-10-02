@@ -39,6 +39,7 @@ dev: kill-ports
     (cd frontend && npm run dev) &
     FRONTEND_PID=$!
     wait $BACKEND_PID $FRONTEND_PID
+    just kill-ports
 
 # Build backend for production
 build-backend:

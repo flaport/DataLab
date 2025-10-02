@@ -101,13 +101,19 @@ async fn update_tag(
     Json(payload): Json<UpdateTag>,
 ) -> Result<Json<Tag>, StatusCode> {
     // First check if tag exists
-    let _existing = sqlx::query!("SELECT id FROM tags WHERE id = ?", id)
+    let existing = sqlx::query!(r#"SELECT name as "name!" FROM tags WHERE id = ?"#, id)
         .fetch_optional(&state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
+    // Check if it's an extension tag - these cannot have their name changed
+    let is_extension_tag = existing.name.starts_with('.');
+
     if let Some(name) = &payload.name {
+        if is_extension_tag {
+            return Err(StatusCode::FORBIDDEN); // 403 Forbidden - cannot rename extension tags
+        }
         sqlx::query!("UPDATE tags SET name = ? WHERE id = ?", name, id)
             .execute(&state.db)
             .await
@@ -137,6 +143,19 @@ async fn delete_tag(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
+    // Check if tag is in use
+    let usage_count = sqlx::query!(
+        "SELECT COUNT(*) as count FROM upload_tags WHERE tag_id = ?",
+        id
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if usage_count.count > 0 {
+        return Err(StatusCode::CONFLICT); // 409 Conflict - tag is in use
+    }
+
     let result = sqlx::query!("DELETE FROM tags WHERE id = ?", id)
         .execute(&state.db)
         .await

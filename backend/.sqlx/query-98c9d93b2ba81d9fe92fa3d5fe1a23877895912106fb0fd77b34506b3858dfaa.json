@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id FROM tags WHERE id = ?",
+  "query": "SELECT name as \"name!\" FROM tags WHERE id = ?",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "name!",
         "ordinal": 0,
         "type_info": "Text"
       }
@@ -13,8 +13,8 @@
       "Right": 1
     },
     "nullable": [
-      true
+      false
     ]
   },
-  "hash": "19ea005c135e415092fb0469d1973b067f33b6c1c4777d12d150c7593fedd1cb"
+  "hash": "98c9d93b2ba81d9fe92fa3d5fe1a23877895912106fb0fd77b34506b3858dfaa"
 }
