@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
@@ -58,8 +58,9 @@ output_dir = os.environ["OUTPUT_DIR"]
 export default function EditFunctionPage({
     params,
 }: {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
+    const { id } = use(params);
     const router = useRouter();
     const { theme, systemTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -80,12 +81,12 @@ export default function EditFunctionPage({
 
     useEffect(() => {
         fetchData();
-    }, [params.id]);
+    }, [id]);
 
     const fetchData = async () => {
         try {
             const [funcRes, tagsRes] = await Promise.all([
-                fetch(`http://localhost:8080/api/functions/${params.id}`),
+                fetch(`http://localhost:8080/api/functions/${id}`),
                 fetch("http://localhost:8080/api/tags"),
             ]);
 
@@ -127,7 +128,7 @@ export default function EditFunctionPage({
 
         try {
             const response = await fetch(
-                `http://localhost:8080/api/functions/${params.id}`,
+                `http://localhost:8080/api/functions/${id}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -162,7 +163,7 @@ export default function EditFunctionPage({
 
         try {
             const response = await fetch(
-                `http://localhost:8080/api/functions/${params.id}`,
+                `http://localhost:8080/api/functions/${id}`,
                 {
                     method: "DELETE",
                 },

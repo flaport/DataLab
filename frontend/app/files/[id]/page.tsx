@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TagBadge } from "@/components/tag-badge";
@@ -46,20 +46,23 @@ interface Upload {
   lineage?: FileLineageInfo;
 }
 
-export default function FileDashboard({ params }: { params: { id: string } }) {
+export default function FileDashboard({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
   const router = useRouter();
   const [file, setFile] = useState<Upload | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFile();
-  }, [params.id]);
+  }, [id]);
 
   const fetchFile = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/uploads/${params.id}`,
-      );
+      const response = await fetch(`http://localhost:8080/api/uploads/${id}`);
       if (response.ok) {
         const data = await response.json();
         setFile(data);
