@@ -122,15 +122,15 @@ Backend runs on `http://localhost:8080`:
 
 The backend supports configuration via **CLI arguments** or **environment variables**:
 
-| Option      | CLI Flag                | Env Var               | Default                | Description                    |
-| ----------- | ----------------------- | --------------------- | ---------------------- | ------------------------------ |
-| Host        | `--host`                | `HOST`                | `127.0.0.1`            | Server host address            |
-| Port        | `-p, --port`            | `PORT`                | `8080`                 | Server port                    |
-| Database    | `--database-url`        | `DATABASE_URL`        | `sqlite:../datalab.db` | Database connection string     |
-| Max Jobs    | `--max-concurrent-jobs` | `MAX_CONCURRENT_JOBS` | `10`                   | Concurrent function executions |
-| Uploads Dir | `--uploads-dir`         | `UPLOADS_DIR`         | `uploads`              | File upload directory          |
-| Scripts Dir | `--scripts-dir`         | `SCRIPTS_DIR`         | `scripts`              | Function scripts directory     |
-| Output Dir  | `--output-dir`          | `OUTPUT_DIR`          | `output`               | Function output directory      |
+| Option      | CLI Flag                | Env Var                  | Default                | Description                    |
+| ----------- | ----------------------- | ------------------------ | ---------------------- | ------------------------------ |
+| Host        | `--host`                | `DL_HOST`                | `127.0.0.1`            | Server host address            |
+| Port        | `-p, --port`            | `DL_PORT`                | `8080`                 | Server port                    |
+| Database    | `--database-url`        | `DL_DATABASE_URL`        | `sqlite:../datalab.db` | Database connection string     |
+| Max Jobs    | `--max-concurrent-jobs` | `DL_MAX_CONCURRENT_JOBS` | `10`                   | Concurrent function executions |
+| Uploads Dir | `--uploads-dir`         | `DL_UPLOADS_DIR`         | `uploads`              | File upload directory          |
+| Scripts Dir | `--scripts-dir`         | `DL_SCRIPTS_DIR`         | `scripts`              | Function scripts directory     |
+| Output Dir  | `--output-dir`          | `DL_OUTPUT_DIR`          | `output`               | Function output directory      |
 
 **Examples:**
 
@@ -140,9 +140,9 @@ cd backend
 cargo run -- --port 3000 --max-concurrent-jobs 20
 
 # Via environment variables
-PORT=3000 MAX_CONCURRENT_JOBS=20 cargo run
+DL_PORT=3000 DL_MAX_CONCURRENT_JOBS=20 cargo run
 
-# Using .env file (copy .env.example to .env first)
+# Using .env file (copy backend/.env.example to backend/.env first)
 cd backend
 cargo run
 
@@ -154,7 +154,7 @@ cargo run -- --help
 
 ```bash
 # High-throughput server
-MAX_CONCURRENT_JOBS=20 PORT=8080 cargo run --release
+DL_MAX_CONCURRENT_JOBS=20 DL_PORT=8080 cargo run --release
 ```
 
 ## 🏗️ Development

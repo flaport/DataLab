@@ -18,31 +18,31 @@ use tower_http::trace::TraceLayer;
 #[command(about = "DataLab Backend Server", long_about = None)]
 struct Args {
     /// Server host address
-    #[arg(long, env = "HOST", default_value = "127.0.0.1")]
+    #[arg(long, env = "DL_HOST", default_value = "127.0.0.1")]
     host: String,
 
     /// Server port
-    #[arg(short, long, env = "PORT", default_value = "8080")]
+    #[arg(short, long, env = "DL_PORT", default_value = "8080")]
     port: u16,
 
     /// Database URL
-    #[arg(long, env = "DATABASE_URL", default_value = "sqlite:../datalab.db")]
+    #[arg(long, env = "DL_DATABASE_URL", default_value = "sqlite:../datalab.db")]
     database_url: String,
 
     /// Maximum concurrent function executions
-    #[arg(long, env = "MAX_CONCURRENT_JOBS", default_value = "10")]
+    #[arg(long, env = "DL_MAX_CONCURRENT_JOBS", default_value = "10")]
     max_concurrent_jobs: usize,
 
     /// Uploads directory
-    #[arg(long, env = "UPLOADS_DIR", default_value = "uploads")]
+    #[arg(long, env = "DL_UPLOADS_DIR", default_value = "uploads")]
     uploads_dir: PathBuf,
 
     /// Scripts directory
-    #[arg(long, env = "SCRIPTS_DIR", default_value = "scripts")]
+    #[arg(long, env = "DL_SCRIPTS_DIR", default_value = "scripts")]
     scripts_dir: PathBuf,
 
     /// Output directory
-    #[arg(long, env = "OUTPUT_DIR", default_value = "output")]
+    #[arg(long, env = "DL_OUTPUT_DIR", default_value = "output")]
     output_dir: PathBuf,
 }
 
