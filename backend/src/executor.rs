@@ -17,6 +17,14 @@ impl ScriptExecutor {
         }
     }
 
+    pub fn new_with_dirs(scripts_dir: PathBuf, uploads_dir: PathBuf, output_dir: PathBuf) -> Self {
+        Self {
+            scripts_dir,
+            uploads_dir,
+            output_dir,
+        }
+    }
+
     pub async fn execute_function(
         &self,
         script_filename: &str,

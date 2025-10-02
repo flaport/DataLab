@@ -118,6 +118,45 @@ Backend runs on `http://localhost:8080`:
 - `GET /api/jobs` - List all jobs with status
 - `GET /api/jobs/:id` - Get a specific job
 
+## ⚙️ Configuration
+
+The backend supports configuration via **CLI arguments** or **environment variables**:
+
+| Option      | CLI Flag                | Env Var               | Default                | Description                    |
+| ----------- | ----------------------- | --------------------- | ---------------------- | ------------------------------ |
+| Host        | `--host`                | `HOST`                | `127.0.0.1`            | Server host address            |
+| Port        | `-p, --port`            | `PORT`                | `8080`                 | Server port                    |
+| Database    | `--database-url`        | `DATABASE_URL`        | `sqlite:../datalab.db` | Database connection string     |
+| Max Jobs    | `--max-concurrent-jobs` | `MAX_CONCURRENT_JOBS` | `10`                   | Concurrent function executions |
+| Uploads Dir | `--uploads-dir`         | `UPLOADS_DIR`         | `uploads`              | File upload directory          |
+| Scripts Dir | `--scripts-dir`         | `SCRIPTS_DIR`         | `scripts`              | Function scripts directory     |
+| Output Dir  | `--output-dir`          | `OUTPUT_DIR`          | `output`               | Function output directory      |
+
+**Examples:**
+
+```bash
+# Via CLI arguments
+cd backend
+cargo run -- --port 3000 --max-concurrent-jobs 20
+
+# Via environment variables
+PORT=3000 MAX_CONCURRENT_JOBS=20 cargo run
+
+# Using .env file (copy .env.example to .env first)
+cd backend
+cargo run
+
+# Show all options
+cargo run -- --help
+```
+
+**Recommended Production Settings:**
+
+```bash
+# High-throughput server
+MAX_CONCURRENT_JOBS=20 PORT=8080 cargo run --release
+```
+
 ## 🏗️ Development
 
 ### Available Commands

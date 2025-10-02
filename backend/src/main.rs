@@ -3,13 +3,48 @@ mod models;
 mod routes;
 
 use axum::Router;
+use clap::Parser;
 use executor::ScriptExecutor;
 use sqlx::sqlite::SqlitePool;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
+
+#[derive(Parser, Debug)]
+#[command(name = "datalab-backend")]
+#[command(about = "DataLab Backend Server", long_about = None)]
+struct Args {
+    /// Server host address
+    #[arg(long, env = "HOST", default_value = "127.0.0.1")]
+    host: String,
+
+    /// Server port
+    #[arg(short, long, env = "PORT", default_value = "8080")]
+    port: u16,
+
+    /// Database URL
+    #[arg(long, env = "DATABASE_URL", default_value = "sqlite:../datalab.db")]
+    database_url: String,
+
+    /// Maximum concurrent function executions
+    #[arg(long, env = "MAX_CONCURRENT_JOBS", default_value = "10")]
+    max_concurrent_jobs: usize,
+
+    /// Uploads directory
+    #[arg(long, env = "UPLOADS_DIR", default_value = "uploads")]
+    uploads_dir: PathBuf,
+
+    /// Scripts directory
+    #[arg(long, env = "SCRIPTS_DIR", default_value = "scripts")]
+    scripts_dir: PathBuf,
+
+    /// Output directory
+    #[arg(long, env = "OUTPUT_DIR", default_value = "output")]
+    output_dir: PathBuf,
+}
 
 pub struct AppState {
     db: SqlitePool,
@@ -19,6 +54,9 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse command line arguments
+    let args = Args::parse();
+
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_target(false)
@@ -26,13 +64,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     // Create necessary directories
-    tokio::fs::create_dir_all("uploads").await?;
-    tokio::fs::create_dir_all("scripts").await?;
-    tokio::fs::create_dir_all("output").await?;
+    tokio::fs::create_dir_all(&args.uploads_dir).await?;
+    tokio::fs::create_dir_all(&args.scripts_dir).await?;
+    tokio::fs::create_dir_all(&args.output_dir).await?;
 
     // Initialize database
-    let database_url = "sqlite:../datalab.db";
-    let db = SqlitePool::connect(database_url).await?;
+    let db = SqlitePool::connect(&args.database_url).await?;
 
     // Run migrations
     let migration_001 = include_str!("../migrations/001_init.sql");
@@ -47,14 +84,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("✅ Database initialized");
 
     // Initialize script executor
-    let executor = ScriptExecutor::new();
+    let executor =
+        ScriptExecutor::new_with_dirs(args.scripts_dir, args.uploads_dir, args.output_dir);
 
     // Create execution semaphore (limit concurrent function executions)
-    let max_concurrent_executions = 10; // Configurable limit
-    let execution_semaphore = Arc::new(Semaphore::new(max_concurrent_executions));
+    let execution_semaphore = Arc::new(Semaphore::new(args.max_concurrent_jobs));
     tracing::info!(
         "✅ Execution semaphore initialized (max concurrent: {})",
-        max_concurrent_executions
+        args.max_concurrent_jobs
     );
 
     // Create shared application state
@@ -79,7 +116,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(TraceLayer::new_for_http());
 
     // Run the server
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr: SocketAddr = format!("{}:{}", args.host, args.port)
+        .parse()
+        .map_err(|e| format!("Invalid host/port: {}", e))?;
 
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
@@ -89,8 +128,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => {
             eprintln!("❌ Failed to bind to {}", addr);
             eprintln!("   Error: {}", e);
-            eprintln!("\n💡 Port 8080 might already be in use.");
-            eprintln!("   Try stopping other processes with: lsof -ti:8080 | xargs kill -9");
+            eprintln!("\n💡 Port {} might already be in use.", args.port);
+            eprintln!(
+                "   Try stopping other processes with: lsof -ti:{} | xargs kill -9",
+                args.port
+            );
             return Err(e.into());
         }
     };

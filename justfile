@@ -12,10 +12,14 @@ install:
     cd frontend && npm install
     @echo "✅ All dependencies installed!"
 
-# Run backend server
+# Run backend server with default configuration
 backend:
     @echo "🚀 Starting backend on http://localhost:8080"
-    cd backend && cargo run
+    @echo "   Max concurrent jobs: 10"
+    cd backend && cargo run -- \
+        --host 127.0.0.1 \
+        --port 8080 \
+        --max-concurrent-jobs 10
 
 # Run frontend development server
 frontend:
