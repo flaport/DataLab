@@ -14,7 +14,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FileIcon, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { FileCard } from "@/components/file-card";
+import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Tag {
     id: string;
@@ -45,6 +53,10 @@ export default function DataPage() {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(100);
+
+    // Tag editing
+    const [editingUpload, setEditingUpload] = useState<Upload | null>(null);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -138,6 +150,70 @@ export default function DataPage() {
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleString();
+    };
+
+    const deleteUpload = async (id: string) => {
+        try {
+            const response = await fetch(`http://localhost:8080/api/uploads/${id}`, {
+                method: "DELETE",
+            });
+
+            if (response.ok) {
+                fetchData();
+            }
+        } catch (error) {
+            console.error("Failed to delete upload:", error);
+        }
+    };
+
+    const openEditDialog = (upload: Upload) => {
+        setEditingUpload(upload);
+        setEditDialogOpen(true);
+    };
+
+    const toggleTagForUpload = async (tagId: string) => {
+        if (!editingUpload) return;
+
+        const hasTag = editingUpload.tags.some((t) => t.id === tagId);
+
+        try {
+            if (hasTag) {
+                // Remove tag
+                const response = await fetch(
+                    `http://localhost:8080/api/uploads/${editingUpload.id}/tags/${tagId}`,
+                    { method: "DELETE" },
+                );
+                if (response.ok) {
+                    setEditingUpload({
+                        ...editingUpload,
+                        tags: editingUpload.tags.filter((t) => t.id !== tagId),
+                    });
+                    fetchData();
+                }
+            } else {
+                // Add tag
+                const response = await fetch(
+                    `http://localhost:8080/api/uploads/${editingUpload.id}/tags`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify([tagId]),
+                    },
+                );
+                if (response.ok) {
+                    const tag = tags.find((t) => t.id === tagId);
+                    if (tag) {
+                        setEditingUpload({
+                            ...editingUpload,
+                            tags: [...editingUpload.tags, tag],
+                        });
+                        fetchData();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Failed to update tags:", error);
+        }
     };
 
     // Highlight matching substring in filename
@@ -278,37 +354,18 @@ export default function DataPage() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                     {paginatedUploads.map((upload) => (
-                        <Card
+                        <FileCard
                             key={upload.id}
-                            className="p-3 hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex items-center gap-3">
-                                <FileIcon className="h-8 w-8 text-blue-600 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline gap-3 flex-wrap">
-                                        <h3 className="font-medium">
-                                            {highlightMatch(upload.original_filename, searchQuery)}
-                                        </h3>
-                                        <span className="text-sm text-slate-500 whitespace-nowrap">
-                                            {formatFileSize(upload.file_size)} •{" "}
-                                            {formatDate(upload.created_at)}
-                                        </span>
-                                        {upload.tags.length > 0 &&
-                                            upload.tags.map((tag) => (
-                                                <Badge
-                                                    key={tag.id}
-                                                    style={{ backgroundColor: tag.color }}
-                                                    className="text-white text-xs"
-                                                >
-                                                    {tag.name}
-                                                </Badge>
-                                            ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
+                            upload={upload}
+                            onEditTags={openEditDialog}
+                            onDelete={deleteUpload}
+                            highlightedFilename={highlightMatch(
+                                upload.original_filename,
+                                searchQuery,
+                            )}
+                        />
                     ))}
                 </div>
             )}
@@ -375,6 +432,54 @@ export default function DataPage() {
                     </Button>
                 </div>
             )}
+
+            {/* Edit Tags Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Manage Tags</DialogTitle>
+                        <DialogDescription>
+                            {editingUpload?.original_filename}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {tags.length === 0 ? (
+                            <p className="text-center text-slate-600 dark:text-slate-400 py-8">
+                                No tags available. Create tags in the Tags page first.
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium mb-3">
+                                    Click tags to add or remove them:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {tags.map((tag) => {
+                                        const isSelected = editingUpload?.tags.some(
+                                            (t) => t.id === tag.id,
+                                        );
+                                        return (
+                                            <Badge
+                                                key={tag.id}
+                                                style={{
+                                                    backgroundColor: isSelected
+                                                        ? tag.color
+                                                        : "transparent",
+                                                    color: isSelected ? "white" : tag.color,
+                                                    borderColor: tag.color,
+                                                }}
+                                                className="cursor-pointer border-2 transition-all hover:scale-105"
+                                                onClick={() => toggleTagForUpload(tag.id)}
+                                            >
+                                                {tag.name}
+                                            </Badge>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
