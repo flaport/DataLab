@@ -205,10 +205,58 @@ async fn upload_file(
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // Add tags if provided
+    // Extract file extension and create/find extension tag
+    if let Some(extension) = original_filename.rsplit('.').next() {
+        if !extension.is_empty() && extension != original_filename {
+            let ext_tag_name = format!(".{}", extension.to_lowercase());
+
+            // Try to find existing extension tag
+            let existing_tag = sqlx::query!(
+                r#"SELECT id as "id!" FROM tags WHERE name = ?"#,
+                ext_tag_name
+            )
+            .fetch_optional(&state.db)
+            .await
+            .ok()
+            .flatten();
+
+            let ext_tag_id = if let Some(tag) = existing_tag {
+                tag.id
+            } else {
+                // Create new extension tag with a default color (gray)
+                let new_tag_id = Uuid::new_v4().to_string();
+                let tag_created_at = chrono::Utc::now().to_rfc3339();
+                let default_color = "#6b7280"; // gray-500
+
+                sqlx::query!(
+                    "INSERT INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?)",
+                    new_tag_id,
+                    ext_tag_name,
+                    default_color,
+                    tag_created_at
+                )
+                .execute(&state.db)
+                .await
+                .ok();
+
+                new_tag_id
+            };
+
+            // Add extension tag to the upload
+            let _ = sqlx::query!(
+                "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+                id,
+                ext_tag_id
+            )
+            .execute(&state.db)
+            .await;
+        }
+    }
+
+    // Add user-selected tags if provided
     for tag_id in tag_ids {
         let _ = sqlx::query!(
-            "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+            "INSERT OR IGNORE INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
             id,
             tag_id
         )

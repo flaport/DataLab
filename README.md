@@ -206,8 +206,9 @@ The frontend uses:
 - ✅ Drag-and-drop file upload
 - ✅ Tag management with color coding
 - ✅ File organization with tags
+- ✅ **Automatic file extension tagging** - Files are automatically tagged with their extension (e.g., `.pdf`, `.csv`)
 - ✅ Data browser with filtering and pagination
-  - Filter by filename (fuzzy search)
+  - Filter by filename (substring search with highlighting)
   - Filter by tags (multiple selection)
   - Paginated view (25/50/100/250 items per page)
 - ✅ SQLite database with compile-time type checking
