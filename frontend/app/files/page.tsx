@@ -240,7 +240,7 @@ export default function DataPage() {
     return (
         <div className="container mx-auto py-8 px-4 max-w-7xl">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold">Data</h1>
+                <h1 className="text-3xl font-bold">Files</h1>
                 <p className="text-slate-600 dark:text-slate-400 mt-1">
                     Browse and filter all uploaded files
                 </p>

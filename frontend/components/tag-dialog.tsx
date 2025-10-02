@@ -155,8 +155,8 @@ export function TagDialog({
                                     key={color}
                                     onClick={() => setSelectedColor(color)}
                                     className={`h-8 w-8 rounded-md transition-all ${selectedColor === color
-                                            ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100"
-                                            : ""
+                                        ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100"
+                                        : ""
                                         }`}
                                     style={{ backgroundColor: color }}
                                     type="button"
