@@ -11,7 +11,7 @@ struct HealthResponse {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_target(false)
@@ -34,11 +34,23 @@ async fn main() {
 
     // Run the server
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    tracing::info!("🚀 Server starting on http://{}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => {
+            tracing::info!("🚀 Server starting on http://{}", addr);
+            listener
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to bind to {}", addr);
+            eprintln!("   Error: {}", e);
+            eprintln!("\n💡 Port 8080 might already be in use.");
+            eprintln!("   Try stopping other processes with: lsof -ti:8080 | xargs kill -9");
+            return Err(e.into());
+        }
+    };
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 async fn root() -> (StatusCode, Json<HealthResponse>) {

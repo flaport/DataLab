@@ -40,57 +40,37 @@ DataLab/
 - **Rust** (latest stable): [Install Rust](https://rustup.rs/)
 - **Node.js** (v20+): [Install Node.js](https://nodejs.org/)
 - **npm** or **yarn** or **pnpm**
+- **just** (command runner): [Install just](https://github.com/casey/just#installation)
 
-### Backend Setup
+### Quick Setup
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Build and run the backend server:
-   ```bash
-   cargo run
-   ```
-
-   The backend will start on `http://localhost:8080`
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-   The frontend will start on `http://localhost:3000`
+Install all dependencies:
+```bash
+just install
+```
 
 ## 🎯 Quick Start
 
-### Start Both Servers
+### Start Both Servers (Recommended)
 
-**Terminal 1 (Backend):**
+Run both backend and frontend simultaneously:
 ```bash
-cd backend
-cargo run
-```
-
-**Terminal 2 (Frontend):**
-```bash
-cd frontend
-npm run dev
+just dev
 ```
 
 Then open your browser and navigate to `http://localhost:3000`
+
+### Start Servers Individually
+
+**Backend only:**
+```bash
+just backend
+```
+
+**Frontend only:**
+```bash
+just frontend
+```
 
 ## 📡 API Endpoints
 
@@ -101,17 +81,35 @@ Backend runs on `http://localhost:8080`:
 
 ## 🏗️ Development
 
+### Available Commands
+
+Run `just` or `just --list` to see all available commands:
+
+```bash
+just install          # Install all dependencies
+just dev             # Run both backend and frontend
+just backend         # Run backend only
+just frontend        # Run frontend only
+just build           # Build for production
+just check           # Check code quality
+just fmt             # Format all code
+just test            # Run all tests
+just health          # Check if backend is running
+just kill-ports      # Kill processes on ports 8080/3000
+just clean           # Clean build artifacts
+```
+
 ### Adding shadcn/ui Components
 
 To add new shadcn/ui components:
 ```bash
-cd frontend
-npx shadcn@latest add [component-name]
+just add-component [component-name]
 ```
 
 Example:
 ```bash
-npx shadcn@latest add input dialog
+just add-component input
+just add-component dialog
 ```
 
 ### Backend Development
