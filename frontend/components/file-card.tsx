@@ -12,12 +12,19 @@ interface Tag {
   color: string;
 }
 
+interface FileLineageInfo {
+  source_filename: string;
+  function_name: string;
+  success: boolean;
+}
+
 interface Upload {
   id: string;
   original_filename: string;
   file_size: number;
   created_at: string;
   tags: Tag[];
+  lineage?: FileLineageInfo;
 }
 
 interface FileCardProps {
@@ -71,6 +78,15 @@ export function FileCard({
               {formatFileSize(upload.file_size)} •{" "}
               {new Date(upload.created_at).toLocaleDateString()}
             </p>
+            {upload.lineage && (
+              <p className="text-xs text-slate-500 mt-1">
+                {upload.lineage.success ? "✓" : "✗"} From{" "}
+                <span className="font-medium">
+                  {upload.lineage.source_filename}
+                </span>{" "}
+                via {upload.lineage.function_name}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {upload.tags.map((tag) => (

@@ -21,6 +21,7 @@ impl ScriptExecutor {
         &self,
         script_filename: &str,
         input_filename: &str,
+        original_filename: &str,
     ) -> Result<Vec<String>, String> {
         let script_path = self.scripts_dir.join(script_filename);
         let input_path = self.uploads_dir.join(input_filename);
@@ -30,18 +31,35 @@ impl ScriptExecutor {
             .await
             .map_err(|e| format!("Failed to create output dir: {}", e))?;
 
+        // Create a temp directory for this execution
+        let temp_dir = self
+            .output_dir
+            .join(format!("temp_{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&temp_dir)
+            .await
+            .map_err(|e| format!("Failed to create temp dir: {}", e))?;
+
+        // Copy file with original name to temp directory
+        let temp_input_path = temp_dir.join(original_filename);
+        tokio::fs::copy(&input_path, &temp_input_path)
+            .await
+            .map_err(|e| format!("Failed to copy input file: {}", e))?;
+
         // Execute script with uv
         let output = Command::new("uv")
             .arg("run")
             .arg("--script")
             .arg(&script_path)
-            .env("SOURCE_PATH", &input_path)
+            .env("SOURCE_PATH", &temp_input_path)
             .env("OUTPUT_DIR", &self.output_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
             .await
             .map_err(|e| format!("Failed to execute script: {}", e))?;
+
+        // Clean up temp directory
+        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 
         // If script failed, write error log
         if !output.status.success() {

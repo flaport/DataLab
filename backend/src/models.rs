@@ -8,6 +8,16 @@ pub struct Tag {
     pub created_at: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileLineage {
+    pub id: String,
+    pub output_upload_id: String,
+    pub source_upload_id: String,
+    pub function_id: String,
+    pub success: bool,
+    pub created_at: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateTag {
     pub name: String,
@@ -30,6 +40,15 @@ pub struct Upload {
     pub created_at: String,
     #[serde(default)]
     pub tags: Vec<Tag>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lineage: Option<FileLineageInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileLineageInfo {
+    pub source_filename: String,
+    pub function_name: String,
+    pub success: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,6 +71,8 @@ pub struct Function {
     pub input_tags: Vec<Tag>,
     #[serde(default)]
     pub output_tags: Vec<Tag>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub script_content: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

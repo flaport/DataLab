@@ -37,6 +37,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sqlx::query(migration_001).execute(&db).await?;
     let migration_002 = include_str!("../migrations/002_functions.sql");
     sqlx::query(migration_002).execute(&db).await?;
+    let migration_003 = include_str!("../migrations/003_file_lineage.sql");
+    sqlx::query(migration_003).execute(&db).await?;
 
     tracing::info!("✅ Database initialized");
 

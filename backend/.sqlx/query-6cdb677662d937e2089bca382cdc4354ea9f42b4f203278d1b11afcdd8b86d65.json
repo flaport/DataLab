@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO file_lineage (id, output_upload_id, source_upload_id, function_id, success, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "6cdb677662d937e2089bca382cdc4354ea9f42b4f203278d1b11afcdd8b86d65"
+}

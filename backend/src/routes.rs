@@ -341,7 +341,7 @@ async fn list_uploads(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Upl
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // Fetch tags for each upload
+    // Fetch tags and lineage for each upload
     let mut result = Vec::new();
     for upload_row in uploads {
         let tags = sqlx::query_as!(
@@ -356,6 +356,30 @@ async fn list_uploads(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Upl
         .await
         .unwrap_or_default();
 
+        // Check for lineage
+        let lineage = sqlx::query!(
+            r#"
+            SELECT 
+                fl.success as "success!",
+                u.original_filename as "source_filename!",
+                f.name as "function_name!"
+            FROM file_lineage fl
+            INNER JOIN uploads u ON fl.source_upload_id = u.id
+            INNER JOIN functions f ON fl.function_id = f.id
+            WHERE fl.output_upload_id = ?
+            "#,
+            upload_row.id
+        )
+        .fetch_optional(&state.db)
+        .await
+        .ok()
+        .flatten()
+        .map(|row| crate::models::FileLineageInfo {
+            source_filename: row.source_filename,
+            function_name: row.function_name,
+            success: row.success != 0,
+        });
+
         result.push(Upload {
             id: upload_row.id,
             filename: upload_row.filename,
@@ -364,6 +388,7 @@ async fn list_uploads(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Upl
             mime_type: upload_row.mime_type,
             created_at: upload_row.created_at,
             tags,
+            lineage,
         });
     }
 
@@ -407,6 +432,30 @@ async fn get_upload(
     .await
     .unwrap_or_default();
 
+    // Check for lineage
+    let lineage = sqlx::query!(
+        r#"
+        SELECT 
+            fl.success as "success!",
+            u.original_filename as "source_filename!",
+            f.name as "function_name!"
+        FROM file_lineage fl
+        INNER JOIN uploads u ON fl.source_upload_id = u.id
+        INNER JOIN functions f ON fl.function_id = f.id
+        WHERE fl.output_upload_id = ?
+        "#,
+        upload_row.id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten()
+    .map(|row| crate::models::FileLineageInfo {
+        source_filename: row.source_filename,
+        function_name: row.function_name,
+        success: row.success != 0,
+    });
+
     Ok(Json(Upload {
         id: upload_row.id,
         filename: upload_row.filename,
@@ -415,6 +464,7 @@ async fn get_upload(
         mime_type: upload_row.mime_type,
         created_at: upload_row.created_at,
         tags,
+        lineage,
     }))
 }
 
@@ -548,9 +598,25 @@ async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
                     upload_id
                 );
 
+                // Get original filename
+                let original_filename = match sqlx::query!(
+                    r#"SELECT original_filename as "original_filename!" FROM uploads WHERE id = ?"#,
+                    upload_id
+                )
+                .fetch_optional(&state.db)
+                .await
+                {
+                    Ok(Some(u)) => u.original_filename,
+                    _ => return,
+                };
+
                 match state
                     .executor
-                    .execute_function(&function.script_filename, &upload.filename)
+                    .execute_function(
+                        &function.script_filename,
+                        &upload.filename,
+                        &original_filename,
+                    )
                     .await
                 {
                     Ok(output_files) => {
@@ -573,6 +639,8 @@ async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
                                 let new_id = Uuid::new_v4().to_string();
                                 let created_at = chrono::Utc::now().to_rfc3339();
                                 let file_size = metadata.len() as i64;
+                                let is_error_log = output_file.starts_with("error_")
+                                    && output_file.ends_with(".log");
 
                                 // Move file to uploads directory
                                 let new_filename = format!("{}_{}", new_id, output_file);
@@ -592,18 +660,20 @@ async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
                                 .execute(&state.db)
                                 .await;
 
-                                // Apply output tags
-                                for tag_id in &output_tag_ids {
-                                    let _ = sqlx::query!(
-                                        "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
-                                        new_id,
-                                        tag_id
-                                    )
-                                    .execute(&state.db)
-                                    .await;
+                                // Apply output tags ONLY if not an error log
+                                if !is_error_log {
+                                    for tag_id in &output_tag_ids {
+                                        let _ = sqlx::query!(
+                                            "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+                                            new_id,
+                                            tag_id
+                                        )
+                                        .execute(&state.db)
+                                        .await;
+                                    }
                                 }
 
-                                // Apply extension tag
+                                // Apply extension tag (for both success and error)
                                 if let Some(extension) = output_file.rsplit('.').next() {
                                     if !extension.is_empty() && extension != output_file {
                                         let ext_tag_name = format!(".{}", extension.to_lowercase());
@@ -615,7 +685,7 @@ async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
                                         .await
                                         {
                                             let _ = sqlx::query!(
-                                                "INSERT INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
+                                                "INSERT OR IGNORE INTO upload_tags (upload_id, tag_id) VALUES (?, ?)",
                                                 new_id,
                                                 tag.id
                                             )
@@ -625,7 +695,26 @@ async fn trigger_functions_for_upload(state: Arc<AppState>, upload_id: String) {
                                     }
                                 }
 
-                                tracing::info!("Created output file: {}", output_file);
+                                // Create lineage record
+                                let lineage_id = Uuid::new_v4().to_string();
+                                let lineage_success = if is_error_log { 0 } else { 1 };
+                                let _ = sqlx::query!(
+                                    "INSERT INTO file_lineage (id, output_upload_id, source_upload_id, function_id, success, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                    lineage_id,
+                                    new_id,
+                                    upload_id,
+                                    function.id,
+                                    lineage_success,
+                                    created_at
+                                )
+                                .execute(&state.db)
+                                .await;
+
+                                tracing::info!(
+                                    "Created output file: {} (success: {})",
+                                    output_file,
+                                    !is_error_log
+                                );
                             }
                         }
                     }
@@ -692,6 +781,7 @@ async fn list_functions(
             created_at: func_row.created_at,
             input_tags,
             output_tags,
+            script_content: None, // Don't load content for list view
         });
     }
 
@@ -786,6 +876,7 @@ async fn create_function(
             created_at,
             input_tags,
             output_tags,
+            script_content: None, // Don't return content in create response
         }),
     ))
 }
@@ -836,6 +927,10 @@ async fn get_function(
     .await
     .unwrap_or_default();
 
+    // Read script content from file
+    let script_path = format!("scripts/{}", func_row.script_filename);
+    let script_content = tokio::fs::read_to_string(&script_path).await.ok();
+
     Ok(Json(Function {
         id: func_row.id,
         name: func_row.name,
@@ -843,6 +938,7 @@ async fn get_function(
         created_at: func_row.created_at,
         input_tags,
         output_tags,
+        script_content,
     }))
 }
 

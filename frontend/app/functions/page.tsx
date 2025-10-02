@@ -122,11 +122,14 @@ export default function FunctionsPage() {
             );
             if (response.ok) {
                 const data = await response.json();
-                // For now, use placeholder since we don't have script content endpoint
+                // Use fetched script content or fall back to template
+                setScriptContent(data.script_content || DEFAULT_SCRIPT);
+            } else {
                 setScriptContent(DEFAULT_SCRIPT);
             }
         } catch (error) {
             console.error("Failed to fetch function:", error);
+            setScriptContent(DEFAULT_SCRIPT);
         }
 
         setDialogOpen(true);

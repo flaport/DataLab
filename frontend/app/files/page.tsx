@@ -32,6 +32,12 @@ interface Tag {
   created_at: string;
 }
 
+interface FileLineageInfo {
+  source_filename: string;
+  function_name: string;
+  success: boolean;
+}
+
 interface Upload {
   id: string;
   filename: string;
@@ -40,6 +46,7 @@ interface Upload {
   mime_type: string | null;
   created_at: string;
   tags: Tag[];
+  lineage?: FileLineageInfo;
 }
 
 export default function DataPage() {

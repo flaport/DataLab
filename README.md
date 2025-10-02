@@ -191,11 +191,26 @@ When you modify SQL queries or the database schema:
 
 #### Database Schema
 
-The database schema is defined in `backend/migrations/001_init.sql`:
+The database schema is defined in migrations:
+
+**Core Tables:**
 
 - **tags** - Color-coded labels for organizing uploads
 - **uploads** - File metadata and storage information
 - **upload_tags** - Many-to-many relationship between uploads and tags
+
+**Functions Tables:**
+
+- **functions** - Python script metadata
+- **function_input_tags** - Required tags for function to trigger
+- **function_output_tags** - Tags applied to successful outputs
+
+**Lineage Tracking:**
+
+- **file_lineage** - Tracks file transformations
+  - Links output files to source files and functions
+  - Records success/failure status
+  - Enables transformation chain visualization
 
 Files are stored in the `uploads/` directory (will migrate to S3 in the future).
 
@@ -237,8 +252,11 @@ df.to_json(output_path, orient="records", indent=2)
 4. Function runs automatically when:
    - A file is uploaded with ALL input tags
    - Tags are added to existing file matching ALL input tags
-5. Output files are saved to `uploads/` with output tags applied
-6. Script errors create `.log` files in `output/`
+5. Output files are saved to `uploads/` with:
+   - **Success**: Output tags + extension tag
+   - **Failure**: Extension tag (.log) only
+6. Lineage records track source → function → output relationships
+7. File cards show "✓ From source.csv via Function Name" for generated files
 
 **Environment Variables:**
 
