@@ -62,7 +62,12 @@ async fn create_tag(
     .await
     .map_err(|e| {
         tracing::error!("Failed to create tag: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
+        // Check if it's a unique constraint violation (duplicate name)
+        if e.to_string().contains("UNIQUE constraint failed") {
+            StatusCode::CONFLICT
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     })?;
 
     let tag = Tag {
@@ -117,7 +122,14 @@ async fn update_tag(
         sqlx::query!("UPDATE tags SET name = ? WHERE id = ?", name, id)
             .execute(&state.db)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|e| {
+                // Check if it's a unique constraint violation (duplicate name)
+                if e.to_string().contains("UNIQUE constraint failed") {
+                    StatusCode::CONFLICT
+                } else {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                }
+            })?;
     }
 
     if let Some(color) = &payload.color {

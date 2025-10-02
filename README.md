@@ -207,6 +207,8 @@ The frontend uses:
 - ✅ Tag management with color coding
 - ✅ File organization with tags
 - ✅ **Automatic file extension tagging** - Files are automatically tagged with their extension (e.g., `.pdf`, `.csv`)
+  - Extension tags can have their color changed but cannot be renamed
+  - Extension tags can only be deleted when not in use by any files
 - ✅ Data browser with filtering and pagination
   - Filter by filename (substring search with highlighting)
   - Filter by tags (multiple selection)
