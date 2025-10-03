@@ -32,6 +32,7 @@ interface FileViewerProps {
     filename: string;
     mimeType?: string | null;
     fileSize: number;
+    showDownloadButton?: boolean;
 }
 
 interface CsvData {
@@ -45,6 +46,7 @@ export function FileViewer({
     filename,
     mimeType,
     fileSize,
+    showDownloadButton = true,
 }: FileViewerProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -211,10 +213,12 @@ export function FileViewer({
                             File type "{filename.split(".").pop()}" is not supported for
                             preview
                         </p>
-                        <Button onClick={downloadFile}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Download File
-                        </Button>
+                        {showDownloadButton && (
+                            <Button onClick={downloadFile}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download File
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -298,9 +302,11 @@ export function FileViewer({
                             >
                                 <RotateCw className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm" onClick={downloadFile}>
-                                <Download className="h-4 w-4" />
-                            </Button>
+                            {showDownloadButton && (
+                                <Button variant="outline" size="sm" onClick={downloadFile}>
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                     </CardTitle>
                 </CardHeader>
@@ -336,10 +342,12 @@ export function FileViewer({
                             CSV Data ({csvData.totalRows.toLocaleString()} rows,{" "}
                             {csvData.headers.length} columns)
                         </div>
-                        <Button variant="outline" size="sm" onClick={downloadFile}>
-                            <Download className="h-4 w-4" />
-                            Download
-                        </Button>
+                        {showDownloadButton && (
+                            <Button variant="outline" size="sm" onClick={downloadFile}>
+                                <Download className="h-4 w-4" />
+                                Download
+                            </Button>
+                        )}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -455,10 +463,12 @@ export function FileViewer({
                             <FileText className="h-5 w-5" />
                             Text Content ({lines.length.toLocaleString()} lines)
                         </div>
-                        <Button variant="outline" size="sm" onClick={downloadFile}>
-                            <Download className="h-4 w-4" />
-                            Download
-                        </Button>
+                        {showDownloadButton && (
+                            <Button variant="outline" size="sm" onClick={downloadFile}>
+                                <Download className="h-4 w-4" />
+                                Download
+                            </Button>
+                        )}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>

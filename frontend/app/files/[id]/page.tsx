@@ -14,6 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -28,8 +35,6 @@ import {
   FileIcon,
   Calendar,
   HardDrive,
-  Tag as TagIcon,
-  BarChart3,
   FileText,
   Download,
   Code,
@@ -91,6 +96,7 @@ export default function FileDashboard({
   const [derivedFiles, setDerivedFiles] = useState<DerivedFile[]>([]);
   const [availableFunctions, setAvailableFunctions] = useState<Function[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDerivedFilesModal, setShowDerivedFilesModal] = useState(false);
 
   useEffect(() => {
     fetchFile();
@@ -219,6 +225,14 @@ export default function FileDashboard({
     return visualizableExtensions.includes(extension);
   };
 
+  // Helper function to download a file
+  const downloadFile = (fileId: string, filename: string) => {
+    const link = document.createElement("a");
+    link.href = `http://localhost:8080/api/uploads/${fileId}/download`;
+    link.download = filename;
+    link.click();
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8 px-4">
@@ -250,10 +264,32 @@ export default function FileDashboard({
               <h1 className="text-3xl font-bold mb-2">
                 {file.original_filename}
               </h1>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-3">
                 {file.tags.map((tag) => (
                   <TagBadge key={tag.id} tag={tag} />
                 ))}
+              </div>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <HardDrive className="h-4 w-4" />
+                  <span>{formatFileSize(file.file_size)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{formatDate(file.created_at)}</span>
+                </div>
+                {derivedFiles.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-1 text-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowDerivedFilesModal(true)}
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    {derivedFiles.length} derived file
+                    {derivedFiles.length !== 1 ? "s" : ""}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -291,7 +327,9 @@ export default function FileDashboard({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button>
+            <Button
+              onClick={() => downloadFile(file.id, file.original_filename)}
+            >
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
@@ -338,244 +376,105 @@ export default function FileDashboard({
         </div>
       )}
 
-      {/* Metadata Cards Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        {/* File Size */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">File Size</CardTitle>
-            <HardDrive className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatFileSize(file.file_size)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {file.file_size.toLocaleString()} bytes
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Upload Date */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uploaded</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Date(file.created_at).toLocaleDateString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {new Date(file.created_at).toLocaleTimeString()}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Tags Count */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tags</CardTitle>
-            <TagIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{file.tags.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {file.tags.length === 1 ? "tag applied" : "tags applied"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* File Type */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">File Type</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {file.mime_type?.split("/")[1]?.toUpperCase() || "UNKNOWN"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {file.mime_type || "Unknown type"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detail Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* File Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>File Information</CardTitle>
-            <CardDescription>Basic metadata about this file</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Filename:</span>
-              <span className="text-sm text-muted-foreground">
-                {file.original_filename}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Stored as:</span>
-              <span className="text-sm text-muted-foreground font-mono text-xs">
-                {file.filename}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Size:</span>
-              <span className="text-sm text-muted-foreground">
-                {formatFileSize(file.file_size)}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">MIME Type:</span>
-              <span className="text-sm text-muted-foreground">
-                {file.mime_type || "Unknown"}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Upload Date:</span>
-              <span className="text-sm text-muted-foreground">
-                {formatDate(file.created_at)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* File Statistics (Placeholder) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Statistics</CardTitle>
-            <CardDescription>Analysis and metrics</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Data Points:</span>
-              </div>
-              <span className="text-sm text-muted-foreground">Coming soon</span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Rows:</span>
-              </div>
-              <span className="text-sm text-muted-foreground">Coming soon</span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Columns:</span>
-              </div>
-              <span className="text-sm text-muted-foreground">Coming soon</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Derived Files (if any) */}
-      {derivedFiles.length > 0 && (
-        <div className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Derived Files</CardTitle>
-              <CardDescription>
-                Files created from this source file by automated functions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {derivedFiles.map((derived) => (
-                  <div
-                    key={derived.output_upload_id}
-                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() =>
-                      router.push(`/files/${derived.output_upload_id}`)
-                    }
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <FileIcon className="h-5 w-5 text-blue-600" />
-                      <div className="flex-1">
-                        <p className="font-medium">{derived.output_filename}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(derived.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {derived.success ? (
-                        <span className="text-xs text-green-600">
-                          ✓ Success
-                        </span>
-                      ) : (
-                        <span className="text-xs text-red-600">✗ Failed</span>
-                      )}
-                      <Button
-                        variant="link"
-                        className="p-0 h-auto text-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/functions/${derived.function_id}`);
-                        }}
-                      >
-                        <Code className="mr-1 h-3 w-3" />
-                        {derived.function_name}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Derived File Visualizations */}
-          {derivedFiles
-            .filter((derived) => derived.success)
-            .map((derived) => {
-              const canVisualize = isVisualizableFile(derived.output_filename);
-              if (!canVisualize) return null;
-
-              return (
-                <div key={`viz-${derived.output_upload_id}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold">
-                      {derived.output_filename}
-                    </h3>
-                    <Badge variant="secondary" className="text-xs">
-                      Generated by {derived.function_name}
-                    </Badge>
-                  </div>
-                  <FileViewer
-                    fileId={derived.output_upload_id}
-                    filename={derived.output_filename}
-                    mimeType={null}
-                    fileSize={0} // We don't have size info for derived files
-                  />
-                </div>
-              );
-            })}
+      {/* Content Preview (first card if file can be visualized) */}
+      {isVisualizableFile(file.original_filename) && (
+        <div className="mb-8">
+          <FileViewer
+            fileId={file.id}
+            filename={file.original_filename}
+            mimeType={file.mime_type}
+            fileSize={file.file_size}
+            showDownloadButton={false}
+          />
         </div>
       )}
 
-      {/* Content Preview */}
-      <div className="mt-4">
-        <FileViewer
-          fileId={file.id}
-          filename={file.original_filename}
-          mimeType={file.mime_type}
-          fileSize={file.file_size}
-        />
-      </div>
+      {/* Derived File Visualizations */}
+      {derivedFiles
+        .filter((derived) => derived.success)
+        .map((derived) => {
+          const canVisualize = isVisualizableFile(derived.output_filename);
+          if (!canVisualize) return null;
+
+          return (
+            <div key={`viz-${derived.output_upload_id}`} className="mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-semibold">
+                  {derived.output_filename}
+                </h3>
+                <Badge variant="secondary" className="text-xs">
+                  Generated by {derived.function_name}
+                </Badge>
+              </div>
+              <FileViewer
+                fileId={derived.output_upload_id}
+                filename={derived.output_filename}
+                mimeType={null}
+                fileSize={0} // We don't have size info for derived files
+                showDownloadButton={false}
+              />
+            </div>
+          );
+        })}
+
+      {/* Derived Files Modal */}
+      <Dialog
+        open={showDerivedFilesModal}
+        onOpenChange={setShowDerivedFilesModal}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Derived Files</DialogTitle>
+            <DialogDescription>
+              Files created from this source file by automated functions
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Derived Files List */}
+            <div className="space-y-2">
+              {derivedFiles.map((derived) => (
+                <div
+                  key={derived.output_upload_id}
+                  className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => {
+                    setShowDerivedFilesModal(false);
+                    router.push(`/files/${derived.output_upload_id}`);
+                  }}
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <FileIcon className="h-5 w-5 text-blue-600" />
+                    <div className="flex-1">
+                      <p className="font-medium">{derived.output_filename}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(derived.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {derived.success ? (
+                      <span className="text-xs text-green-600">✓ Success</span>
+                    ) : (
+                      <span className="text-xs text-red-600">✗ Failed</span>
+                    )}
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto text-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDerivedFilesModal(false);
+                        router.push(`/functions/${derived.function_id}`);
+                      }}
+                    >
+                      <Code className="mr-1 h-3 w-3" />
+                      {derived.function_name}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
