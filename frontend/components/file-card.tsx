@@ -127,7 +127,7 @@ export function FileCard({
       className={`p-4 ${clickable ? "cursor-pointer hover:shadow-lg transition-shadow" : ""}`}
       onClick={handleCardClick}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
           <FileIcon className="h-8 w-8 text-blue-600" />
           <div className="flex-1">
