@@ -84,6 +84,36 @@ export function FileCard({
     }
   };
 
+  const triggerFunction = async (functionId: string, functionName: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/uploads/${upload.id}/trigger/${functionId}`,
+        { method: "POST" },
+      );
+
+      if (response.ok) {
+        toast({
+          title: "Function triggered",
+          description: `${functionName} is now running on ${upload.original_filename}`,
+        });
+        onFunctionTriggered?.();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Failed to trigger function",
+          description: "Please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to trigger function:", error);
+      toast({
+        variant: "destructive",
+        title: "Network error",
+        description: "Please check your connection.",
+      });
+    }
+  };
+
   // Filter functions that can run on this file (have all required input tags)
   const applicableFunctions = availableFunctions.filter((func) => {
     const uploadTagIds = upload.tags.map((t) => t.id);
@@ -142,7 +172,10 @@ export function FileCard({
                   {applicableFunctions.map((func) => (
                     <DropdownMenuItem
                       key={func.id}
-                      onClick={(e) => triggerFunction(func.id, func.name, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerFunction(func.id, func.name);
+                      }}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className="text-sm">{func.name}</span>
