@@ -295,12 +295,24 @@ export default function NewFunctionPage() {
                     <Button variant="outline" onClick={() => router.push("/functions")}>
                         Cancel
                     </Button>
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving || !name.trim() || selectedInputTags.length === 0}
-                    >
-                        {saving ? "Creating..." : "Create Function"}
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        {(saving || !name.trim() || selectedInputTags.length === 0) && (
+                            <p className="text-xs text-muted-foreground">
+                                {!name.trim() && "Function name required"}
+                                {name.trim() &&
+                                    selectedInputTags.length === 0 &&
+                                    "At least one input tag required"}
+                            </p>
+                        )}
+                        <Button
+                            onClick={handleSave}
+                            disabled={
+                                saving || !name.trim() || selectedInputTags.length === 0
+                            }
+                        >
+                            {saving ? "Creating..." : "Create Function"}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

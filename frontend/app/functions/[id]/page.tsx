@@ -433,12 +433,24 @@ export default function EditFunctionPage({
                     <Button variant="outline" onClick={() => router.push("/functions")}>
                         Cancel
                     </Button>
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving || !name.trim() || selectedInputTags.length === 0}
-                    >
-                        {saving ? "Saving..." : "Save Changes"}
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        {(saving || !name.trim() || selectedInputTags.length === 0) && (
+                            <p className="text-xs text-muted-foreground">
+                                {!name.trim() && "Function name required"}
+                                {name.trim() &&
+                                    selectedInputTags.length === 0 &&
+                                    "At least one input tag required"}
+                            </p>
+                        )}
+                        <Button
+                            onClick={handleSave}
+                            disabled={
+                                saving || !name.trim() || selectedInputTags.length === 0
+                            }
+                        >
+                            {saving ? "Saving..." : "Save Changes"}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

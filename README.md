@@ -94,11 +94,12 @@ Then open your browser and navigate to `http://localhost:3000`
 Set up useful default tags and conversion functions:
 
 ```bash
-python3 populate.py
+uv run --script populate.py
 ```
 
 This creates:
-- **Default Tags**: `.csv`, `.parquet`, `.json` with color coding
+- **File Extension Tags**: `.csv`, `.parquet`, `.json` with color coding
+- **Workflow Tags**: `processed`, `converted` for organizing outputs
 - **Conversion Functions**: csv2parquet, parquet2json, json2csv (disabled by default)
 - **Smart Visualization**: Convert functions won't show duplicate visualizations
 
