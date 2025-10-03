@@ -986,64 +986,9 @@ async fn create_function(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateFunction>,
 ) -> Result<(StatusCode, Json<Function>), StatusCode> {
-    // Build function graph and check for cycles
-    let mut graph = DirectedGraph::new();
-
-    // Add existing functions to graph
-    let existing_functions = sqlx::query!(r#"SELECT id as "id!" FROM functions"#)
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default();
-
-    for func in existing_functions {
-        let input_tags: Vec<String> = sqlx::query!(
-            r#"SELECT tag_id as "tag_id!" FROM function_input_tags WHERE function_id = ?"#,
-            func.id
-        )
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default()
-        .iter()
-        .map(|r| r.tag_id.clone())
-        .collect();
-
-        let output_tags: Vec<String> = sqlx::query!(
-            r#"SELECT tag_id as "tag_id!" FROM function_output_tags WHERE function_id = ?"#,
-            func.id
-        )
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default()
-        .iter()
-        .map(|r| r.tag_id.clone())
-        .collect();
-
-        graph.add_edges(&input_tags, &output_tags);
-    }
-
-    // Add proposed function to graph
-    graph.add_edges(&payload.input_tag_ids, &payload.output_tag_ids);
-
-    // Check for cycles
-    if graph.has_cycle() {
-        tracing::warn!("Function creation rejected: would create cycle");
-        return Err(StatusCode::UNPROCESSABLE_ENTITY); // 422
-    }
-
     let id = Uuid::new_v4().to_string();
     let created_at = chrono::Utc::now().to_rfc3339();
     let script_filename = format!("{}_{}.py", created_at.replace([':', '-', '.'], "_"), id);
-
-    // Check for cycles - disable if would cause one
-    let would_cause_cycle = graph.has_cycle();
-    let enabled_int = if would_cause_cycle { 0 } else { 1 };
-
-    if would_cause_cycle {
-        tracing::warn!(
-            "Function '{}' will be created but DISABLED due to cycle detection",
-            payload.name
-        );
-    }
 
     // Save script to file
     let script_path = format!("scripts/{}", script_filename);
@@ -1051,13 +996,12 @@ async fn create_function(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // Save function to database with enabled status
+    // Save function to database (disabled by default)
     sqlx::query!(
-        "INSERT INTO functions (id, name, script_filename, enabled, created_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO functions (id, name, script_filename, created_at) VALUES (?, ?, ?, ?)",
         id,
         payload.name,
         script_filename,
-        enabled_int,
         created_at
     )
     .execute(&state.db)
@@ -1123,7 +1067,7 @@ async fn create_function(
             id,
             name: payload.name,
             script_filename,
-            enabled: enabled_int != 0,
+            enabled: false, // Always disabled by default
             created_at,
             input_tags,
             output_tags,
@@ -1280,31 +1224,49 @@ async fn update_function(
         }
     }
 
-    // Update enabled status if provided, or check for cycles if tags changed
+    // Update enabled status if provided - check for cycles when enabling
     if let Some(enabled) = payload.enabled {
-        let enabled_int = if enabled { 1 } else { 0 };
-        sqlx::query!(
-            "UPDATE functions SET enabled = ? WHERE id = ?",
-            enabled_int,
-            id
-        )
-        .execute(&state.db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    } else if payload.input_tag_ids.is_some() || payload.output_tag_ids.is_some() {
-        // Tags were updated, check for cycles
-        let mut graph = DirectedGraph::new();
+        if enabled {
+            // Check for cycles before enabling
+            let mut graph = DirectedGraph::new();
 
-        // Add all functions (including this one with new tags) to graph
-        let all_functions = sqlx::query!(r#"SELECT id as "id!" FROM functions"#)
-            .fetch_all(&state.db)
-            .await
-            .unwrap_or_default();
+            // Add all currently ENABLED functions to graph
+            let all_functions =
+                sqlx::query!(r#"SELECT id as "id!" FROM functions WHERE enabled = 1"#)
+                    .fetch_all(&state.db)
+                    .await
+                    .unwrap_or_default();
 
-        for func in all_functions {
+            for func in all_functions {
+                let input_tags: Vec<String> = sqlx::query!(
+                    r#"SELECT tag_id as "tag_id!" FROM function_input_tags WHERE function_id = ?"#,
+                    func.id
+                )
+                .fetch_all(&state.db)
+                .await
+                .unwrap_or_default()
+                .iter()
+                .map(|r| r.tag_id.clone())
+                .collect();
+
+                let output_tags: Vec<String> = sqlx::query!(
+                    r#"SELECT tag_id as "tag_id!" FROM function_output_tags WHERE function_id = ?"#,
+                    func.id
+                )
+                .fetch_all(&state.db)
+                .await
+                .unwrap_or_default()
+                .iter()
+                .map(|r| r.tag_id.clone())
+                .collect();
+
+                graph.add_edges(&input_tags, &output_tags);
+            }
+
+            // Add THIS function (the one being enabled) with its current tags
             let input_tags: Vec<String> = sqlx::query!(
                 r#"SELECT tag_id as "tag_id!" FROM function_input_tags WHERE function_id = ?"#,
-                func.id
+                id
             )
             .fetch_all(&state.db)
             .await
@@ -1315,7 +1277,7 @@ async fn update_function(
 
             let output_tags: Vec<String> = sqlx::query!(
                 r#"SELECT tag_id as "tag_id!" FROM function_output_tags WHERE function_id = ?"#,
-                func.id
+                id
             )
             .fetch_all(&state.db)
             .await
@@ -1325,16 +1287,23 @@ async fn update_function(
             .collect();
 
             graph.add_edges(&input_tags, &output_tags);
+
+            // Reject if enabling would cause cycle
+            if graph.has_cycle() {
+                tracing::warn!("Cannot enable function {}: would create cycle", id);
+                return Err(StatusCode::CONFLICT); // 409 - Conflict due to cycle
+            }
         }
 
-        // Disable if cycle detected
-        if graph.has_cycle() {
-            tracing::warn!("Function {} DISABLED due to cycle after tag update", id);
-            sqlx::query!("UPDATE functions SET enabled = 0 WHERE id = ?", id)
-                .execute(&state.db)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        }
+        let enabled_int = if enabled { 1 } else { 0 };
+        sqlx::query!(
+            "UPDATE functions SET enabled = ? WHERE id = ?",
+            enabled_int,
+            id
+        )
+        .execute(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     // Return updated function

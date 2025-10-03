@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!\" FROM functions",
+  "query": "SELECT id as \"id!\" FROM functions WHERE enabled = 1",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       true
     ]
   },
-  "hash": "bd6ceaff9e5444e286f24ce4dd7c97269cfaef270701669b2c40c51f33180474"
+  "hash": "1c0a1235b02e80251f8cb37c823c16d756507f3c02cea9961209163d9604b879"
 }

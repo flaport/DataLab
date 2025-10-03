@@ -229,14 +229,27 @@ export default function EditFunctionPage({
                                     checked={func.enabled}
                                     onCheckedChange={async (checked) => {
                                         try {
-                                            await fetch(`http://localhost:8080/api/functions/${id}`, {
-                                                method: "PUT",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ enabled: checked }),
-                                            });
-                                            fetchData();
+                                            const response = await fetch(
+                                                `http://localhost:8080/api/functions/${id}`,
+                                                {
+                                                    method: "PUT",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ enabled: checked }),
+                                                },
+                                            );
+
+                                            if (response.ok) {
+                                                fetchData();
+                                            } else if (response.status === 409) {
+                                                alert(
+                                                    "Cannot enable this function: it would create a circular dependency!\n\nDisable conflicting functions first.",
+                                                );
+                                            } else {
+                                                alert("Failed to toggle function.");
+                                            }
                                         } catch (error) {
                                             console.error("Failed to toggle:", error);
+                                            alert("Network error. Please try again.");
                                         }
                                     }}
                                 />

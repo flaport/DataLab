@@ -86,9 +86,16 @@ export default function FunctionsPage() {
 
             if (response.ok) {
                 fetchFunctions();
+            } else if (response.status === 409) {
+                alert(
+                    "Cannot enable this function: it would create a circular dependency!\n\nDisable conflicting functions first.",
+                );
+            } else {
+                alert("Failed to toggle function. Please try again.");
             }
         } catch (error) {
             console.error("Failed to toggle function:", error);
+            alert("Network error. Please check your connection.");
         }
     };
 
