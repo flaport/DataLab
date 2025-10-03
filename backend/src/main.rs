@@ -2,6 +2,7 @@ mod executor;
 mod graph;
 mod models;
 mod routes;
+mod table_parser;
 
 use axum::Router;
 use clap::Parser;

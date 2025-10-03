@@ -25,8 +25,6 @@ import {
     ZoomOut,
     RotateCw,
 } from "lucide-react";
-import Papa from "papaparse";
-import * as arrow from "apache-arrow";
 
 interface FileViewerProps {
     fileId: string;
@@ -36,10 +34,12 @@ interface FileViewerProps {
     showDownloadButton?: boolean;
 }
 
-interface CsvData {
+interface TableData {
     headers: string[];
     rows: string[][];
     totalRows: number;
+    totalColumns: number;
+    fileType: string;
 }
 
 export function FileViewer({
@@ -52,7 +52,7 @@ export function FileViewer({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fileContent, setFileContent] = useState<string | null>(null);
-    const [csvData, setCsvData] = useState<CsvData | null>(null);
+    const [tableData, setTableData] = useState<TableData | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
     const [searchTerm, setSearchTerm] = useState("");
     const [imageScale, setImageScale] = useState(1);
@@ -116,23 +116,19 @@ export function FileViewer({
         setError(null);
 
         try {
-            const response = await fetch(
-                `http://localhost:8080/api/uploads/${fileId}/download`,
-            );
-            if (!response.ok) {
-                throw new Error("Failed to fetch file content");
-            }
-
-            if (fileType === "parquet") {
-                const arrayBuffer = await response.arrayBuffer();
-                await parseParquetContent(arrayBuffer);
+            if (fileType === "csv" || fileType === "parquet") {
+                // Use server-side table preview for data files
+                await fetchTableData();
             } else {
+                // For text files, still fetch content directly
+                const response = await fetch(
+                    `http://localhost:8080/api/uploads/${fileId}/download`,
+                );
+                if (!response.ok) {
+                    throw new Error("Failed to fetch file content");
+                }
                 const content = await response.text();
                 setFileContent(content);
-
-                if (fileType === "csv") {
-                    parseCsvContent(content);
-                }
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -141,117 +137,36 @@ export function FileViewer({
         }
     };
 
-    const parseCsvContent = (content: string) => {
-        Papa.parse(content, {
-            complete: (results) => {
-                if (results.errors.length > 0) {
-                    setError("Error parsing CSV: " + results.errors[0].message);
-                    return;
-                }
-
-                const data = results.data as string[][];
-                if (data.length === 0) {
-                    setError("CSV file is empty");
-                    return;
-                }
-
-                const headers = data[0];
-                const rows = data
-                    .slice(1)
-                    .filter((row) => row.some((cell) => cell.trim() !== ""));
-
-                setCsvData({
-                    headers,
-                    rows,
-                    totalRows: rows.length,
-                });
-            },
-            header: false,
-            skipEmptyLines: true,
-        });
-    };
-
-    const parseParquetContent = async (arrayBuffer: ArrayBuffer) => {
+    const fetchTableData = async () => {
         try {
-            // Try to parse the Parquet file using Apache Arrow
-            const uint8Array = new Uint8Array(arrayBuffer);
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                page_size: rowsPerPage.toString(),
+            });
 
-            try {
-                // Apache Arrow can read some Parquet files directly
-                const table = arrow.tableFromIPC(uint8Array);
-
-                // Extract column names
-                const headers = table.schema.fields.map((field) => field.name);
-
-                // Convert table data to rows
-                const rows: string[][] = [];
-                for (let i = 0; i < Math.min(table.numRows, 10000); i++) {
-                    // Limit to 10k rows for performance
-                    const row: string[] = [];
-                    for (let j = 0; j < table.numCols; j++) {
-                        const column = table.getChildAt(j);
-                        const value = column?.get(i);
-                        row.push(value?.toString() || "");
-                    }
-                    rows.push(row);
-                }
-
-                setCsvData({
-                    headers,
-                    rows,
-                    totalRows: rows.length,
-                });
-            } catch (arrowError) {
-                // If Arrow parsing fails, show basic file info
-                setCsvData({
-                    headers: ["Property", "Value"],
-                    rows: [
-                        ["File Type", "Parquet"],
-                        [
-                            "File Size",
-                            `${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`,
-                        ],
-                        ["Bytes", arrayBuffer.byteLength.toLocaleString()],
-                        ["Status", "Binary Parquet file detected"],
-                        [
-                            "Note",
-                            "This appears to be a Parquet file, but full parsing requires specialized tools",
-                        ],
-                        [
-                            "Suggestion",
-                            "Try converting to CSV format for better browser visualization",
-                        ],
-                    ],
-                    totalRows: 6,
-                });
+            if (searchTerm) {
+                params.append("search", searchTerm);
             }
-        } catch (err) {
-            setError(
-                "Failed to parse Parquet file: " +
-                (err instanceof Error ? err.message : "Unknown error"),
+
+            const response = await fetch(
+                `http://localhost:8080/api/uploads/${fileId}/table-preview?${params}`,
             );
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch table data");
+            }
+
+            const data = await response.json();
+            setTableData(data);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unknown error occurred");
         }
     };
 
-    const getFilteredRows = () => {
-        if (!csvData || !searchTerm) {
-            return csvData?.rows || [];
-        }
-
-        return csvData.rows.filter((row) =>
-            row.some((cell) => cell.toLowerCase().includes(searchTerm.toLowerCase())),
-        );
-    };
-
-    const getPaginatedRows = () => {
-        const filteredRows = getFilteredRows();
-        const startIndex = currentPage * rowsPerPage;
-        return filteredRows.slice(startIndex, startIndex + rowsPerPage);
-    };
-
+    // Server-side pagination means we don't need client-side filtering
     const getTotalPages = () => {
-        const filteredRows = getFilteredRows();
-        return Math.ceil(filteredRows.length / rowsPerPage);
+        if (!tableData) return 0;
+        return Math.ceil(tableData.totalRows / rowsPerPage);
     };
 
     useEffect(() => {
@@ -259,6 +174,13 @@ export function FileViewer({
             fetchFileContent();
         }
     }, [fileId, fileType]);
+
+    // Refetch table data when page or search changes
+    useEffect(() => {
+        if (fileType === "csv" || fileType === "parquet") {
+            fetchTableData();
+        }
+    }, [currentPage, searchTerm]);
 
     const downloadFile = () => {
         const link = document.createElement("a");
@@ -399,9 +321,7 @@ export function FileViewer({
     }
 
     // CSV/Parquet Viewer
-    if ((fileType === "csv" || fileType === "parquet") && csvData) {
-        const filteredRows = getFilteredRows();
-        const paginatedRows = getPaginatedRows();
+    if ((fileType === "csv" || fileType === "parquet") && tableData) {
         const totalPages = getTotalPages();
 
         return (
@@ -411,8 +331,8 @@ export function FileViewer({
                         <div className="flex items-center gap-2">
                             <FileText className="h-5 w-5" />
                             {fileType === "parquet" ? "Parquet" : "CSV"} Data (
-                            {csvData.totalRows.toLocaleString()} rows,{" "}
-                            {csvData.headers.length} columns)
+                            {tableData?.totalRows?.toLocaleString() || 0} rows,{" "}
+                            {tableData?.totalColumns || 0} columns)
                         </div>
                         {showDownloadButton && (
                             <Button variant="outline" size="sm" onClick={downloadFile}>
@@ -438,7 +358,8 @@ export function FileViewer({
                             />
                             {searchTerm && (
                                 <Badge variant="secondary">
-                                    {filteredRows.length} of {csvData.totalRows} rows
+                                    {tableData?.rows?.length || 0} of {tableData?.totalRows || 0}{" "}
+                                    rows
                                 </Badge>
                             )}
                         </div>
@@ -450,7 +371,7 @@ export function FileViewer({
                                     <TableHeader>
                                         <TableRow className="bg-muted/50">
                                             <TableHead className="w-12 text-center">#</TableHead>
-                                            {csvData.headers.map((header, index) => (
+                                            {(tableData?.headers || []).map((header, index) => (
                                                 <TableHead key={index} className="font-medium">
                                                     {header || `Column ${index + 1}`}
                                                 </TableHead>
@@ -458,7 +379,7 @@ export function FileViewer({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {paginatedRows.map((row, rowIndex) => (
+                                        {(tableData?.rows || []).map((row, rowIndex) => (
                                             <TableRow key={rowIndex}>
                                                 <TableCell className="text-center text-muted-foreground text-sm">
                                                     {currentPage * rowsPerPage + rowIndex + 1}
@@ -485,9 +406,9 @@ export function FileViewer({
                                     Showing {currentPage * rowsPerPage + 1} to{" "}
                                     {Math.min(
                                         (currentPage + 1) * rowsPerPage,
-                                        filteredRows.length,
+                                        tableData?.totalRows || 0,
                                     )}{" "}
-                                    of {filteredRows.length} rows
+                                    of {tableData?.totalRows || 0} rows
                                 </p>
                                 <div className="flex items-center space-x-2">
                                     <Button

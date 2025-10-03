@@ -3,9 +3,10 @@ use crate::models::{
     CreateFunction, CreateTag, DerivedFile, Function, Job, Tag, UpdateFunction, UpdateTag, Upload,
     UploadResponse,
 };
+use crate::table_parser::{get_table_preview as parse_table_preview, TablePreview, TableQuery};
 use crate::AppState;
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Path, Query, State},
     http::{header, StatusCode},
     response::Response,
     routing::{delete, get, post},
@@ -22,6 +23,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/uploads", get(list_uploads).post(upload_file))
         .route("/uploads/:id", get(get_upload).delete(delete_upload))
         .route("/uploads/:id/download", get(download_file))
+        .route("/uploads/:id/table-preview", get(get_table_preview))
         .route("/uploads/:id/tags", post(add_tags_to_upload))
         .route("/uploads/:id/tags/:tag_id", delete(remove_tag_from_upload))
         .route("/uploads/:id/derived", get(get_derived_files))
@@ -1604,4 +1606,45 @@ async fn get_job(
         function_name,
         output_filenames,
     }))
+}
+
+async fn get_table_preview(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Query(query): Query<TableQuery>,
+) -> Result<Json<TablePreview>, StatusCode> {
+    // Get file info from database
+    let upload = sqlx::query!(
+        r#"SELECT filename as "filename!", original_filename as "original_filename!" FROM uploads WHERE id = ?"#,
+        id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Get file extension
+    let extension = upload
+        .original_filename
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Check if file type is supported for table preview
+    if !matches!(extension.as_str(), "csv" | "parquet") {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Build file path
+    let file_path = format!("uploads/{}", upload.filename);
+
+    // Parse table data
+    match parse_table_preview(&file_path, &extension, &query) {
+        Ok(preview) => Ok(Json(preview)),
+        Err(e) => {
+            tracing::error!("Failed to parse table file {}: {}", file_path, e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
