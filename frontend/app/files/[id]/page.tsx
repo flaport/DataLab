@@ -3,7 +3,9 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { TagBadge } from "@/components/tag-badge";
+import { FileViewer } from "@/components/file-viewer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -189,6 +191,32 @@ export default function FileDashboard({
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  // Helper function to determine if a file can be visualized
+  const isVisualizableFile = (filename: string) => {
+    const extension = filename.toLowerCase().split(".").pop() || "";
+    const visualizableExtensions = [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "webp",
+      "svg",
+      "bmp", // images
+      "csv", // data
+      "txt",
+      "log",
+      "md",
+      "py",
+      "js",
+      "ts",
+      "json",
+      "xml",
+      "html",
+      "css", // text
+    ];
+    return visualizableExtensions.includes(extension);
   };
 
   if (loading) {
@@ -457,69 +485,97 @@ export default function FileDashboard({
 
       {/* Derived Files (if any) */}
       {derivedFiles.length > 0 && (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>Derived Files</CardTitle>
-            <CardDescription>
-              Files created from this source file by automated functions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {derivedFiles.map((derived) => (
-                <div
-                  key={derived.output_upload_id}
-                  className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() =>
-                    router.push(`/files/${derived.output_upload_id}`)
-                  }
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <FileIcon className="h-5 w-5 text-blue-600" />
-                    <div className="flex-1">
-                      <p className="font-medium">{derived.output_filename}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(derived.created_at).toLocaleString()}
-                      </p>
+        <div className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Derived Files</CardTitle>
+              <CardDescription>
+                Files created from this source file by automated functions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {derivedFiles.map((derived) => (
+                  <div
+                    key={derived.output_upload_id}
+                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() =>
+                      router.push(`/files/${derived.output_upload_id}`)
+                    }
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <FileIcon className="h-5 w-5 text-blue-600" />
+                      <div className="flex-1">
+                        <p className="font-medium">{derived.output_filename}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(derived.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {derived.success ? (
+                        <span className="text-xs text-green-600">
+                          ✓ Success
+                        </span>
+                      ) : (
+                        <span className="text-xs text-red-600">✗ Failed</span>
+                      )}
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto text-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/functions/${derived.function_id}`);
+                        }}
+                      >
+                        <Code className="mr-1 h-3 w-3" />
+                        {derived.function_name}
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {derived.success ? (
-                      <span className="text-xs text-green-600">✓ Success</span>
-                    ) : (
-                      <span className="text-xs text-red-600">✗ Failed</span>
-                    )}
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/functions/${derived.function_id}`);
-                      }}
-                    >
-                      <Code className="mr-1 h-3 w-3" />
-                      {derived.function_name}
-                    </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Derived File Visualizations */}
+          {derivedFiles
+            .filter((derived) => derived.success)
+            .map((derived) => {
+              const canVisualize = isVisualizableFile(derived.output_filename);
+              if (!canVisualize) return null;
+
+              return (
+                <div key={`viz-${derived.output_upload_id}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-semibold">
+                      {derived.output_filename}
+                    </h3>
+                    <Badge variant="secondary" className="text-xs">
+                      Generated by {derived.function_name}
+                    </Badge>
                   </div>
+                  <FileViewer
+                    fileId={derived.output_upload_id}
+                    filename={derived.output_filename}
+                    mimeType={null}
+                    fileSize={0} // We don't have size info for derived files
+                  />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              );
+            })}
+        </div>
       )}
 
-      {/* Content Preview (Placeholder) */}
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>Content Preview</CardTitle>
-          <CardDescription>File content will be displayed here</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-12 text-slate-400">
-            <p>Content preview coming soon</p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Content Preview */}
+      <div className="mt-4">
+        <FileViewer
+          fileId={file.id}
+          filename={file.original_filename}
+          mimeType={file.mime_type}
+          fileSize={file.file_size}
+        />
+      </div>
     </div>
   );
 }

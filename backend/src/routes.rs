@@ -6,7 +6,8 @@ use crate::models::{
 use crate::AppState;
 use axum::{
     extract::{Multipart, Path, State},
-    http::StatusCode,
+    http::{header, StatusCode},
+    response::Response,
     routing::{delete, get, post},
     Json, Router,
 };
@@ -20,6 +21,7 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/tags/:id", get(get_tag).put(update_tag).delete(delete_tag))
         .route("/uploads", get(list_uploads).post(upload_file))
         .route("/uploads/:id", get(get_upload).delete(delete_upload))
+        .route("/uploads/:id/download", get(download_file))
         .route("/uploads/:id/tags", post(add_tags_to_upload))
         .route("/uploads/:id/tags/:tag_id", delete(remove_tag_from_upload))
         .route("/uploads/:id/derived", get(get_derived_files))
@@ -516,6 +518,46 @@ async fn delete_upload(
     let _ = tokio::fs::remove_file(file_path).await;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn download_file(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Response, StatusCode> {
+    // Get file info from database
+    let upload = sqlx::query!(
+        r#"SELECT filename as "filename!", original_filename as "original_filename!", mime_type FROM uploads WHERE id = ?"#,
+        id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Read file from disk
+    let file_path = format!("uploads/{}", upload.filename);
+    let file_data = tokio::fs::read(&file_path)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    // Build response with appropriate headers
+    let mut response = Response::builder().status(StatusCode::OK);
+
+    // Set content type if available
+    if let Some(mime_type) = upload.mime_type {
+        response = response.header(header::CONTENT_TYPE, mime_type);
+    }
+
+    // Set content disposition for download
+    let content_disposition = format!("inline; filename=\"{}\"", upload.original_filename);
+    response = response.header(header::CONTENT_DISPOSITION, content_disposition);
+
+    // Set content length
+    response = response.header(header::CONTENT_LENGTH, file_data.len());
+
+    response
+        .body(axum::body::Body::from(file_data))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn add_tags_to_upload(
