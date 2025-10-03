@@ -80,6 +80,7 @@ interface Function {
   id: string;
   name: string;
   enabled: boolean;
+  function_type: string;
   input_tags: Tag[];
   output_tags: Tag[];
 }
@@ -95,6 +96,7 @@ export default function FileDashboard({
   const [file, setFile] = useState<Upload | null>(null);
   const [derivedFiles, setDerivedFiles] = useState<DerivedFile[]>([]);
   const [availableFunctions, setAvailableFunctions] = useState<Function[]>([]);
+  const [allFunctions, setAllFunctions] = useState<Function[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDerivedFilesModal, setShowDerivedFilesModal] = useState(false);
 
@@ -139,6 +141,7 @@ export default function FileDashboard({
       const response = await fetch("http://localhost:8080/api/functions");
       if (response.ok) {
         const data = await response.json();
+        setAllFunctions(data);
         setAvailableFunctions(data);
       }
     } catch (error) {
@@ -232,6 +235,19 @@ export default function FileDashboard({
     link.href = `http://localhost:8080/api/uploads/${fileId}/download`;
     link.download = filename;
     link.click();
+  };
+
+  // Helper function to check if a derived file should be visualized
+  const shouldVisualizeDerivation = (derived: DerivedFile) => {
+    if (!derived.success) return false;
+    if (!isVisualizableFile(derived.output_filename)) return false;
+
+    // Find the function that created this derived file
+    const func = allFunctions.find((f) => f.id === derived.function_id);
+    if (!func) return false;
+
+    // Only visualize if it's a transformation function (not format conversion)
+    return func.function_type === "transform";
   };
 
   if (loading) {
@@ -392,11 +408,8 @@ export default function FileDashboard({
 
       {/* Derived File Visualizations */}
       {derivedFiles
-        .filter((derived) => derived.success)
+        .filter((derived) => shouldVisualizeDerivation(derived))
         .map((derived) => {
-          const canVisualize = isVisualizableFile(derived.output_filename);
-          if (!canVisualize) return null;
-
           return (
             <div key={`viz-${derived.output_upload_id}`} className="mt-4">
               <div className="flex items-center gap-2 mb-2">

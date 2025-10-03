@@ -1000,12 +1000,13 @@ async fn list_functions(
         name: String,
         script_filename: String,
         enabled: i64,
+        function_type: String,
         created_at: String,
     }
 
     let functions = sqlx::query_as!(
         FunctionRow,
-        r#"SELECT id as "id!", name as "name!", script_filename as "script_filename!", enabled as "enabled!", created_at as "created_at!" FROM functions ORDER BY created_at DESC"#
+        r#"SELECT id as "id!", name as "name!", script_filename as "script_filename!", enabled as "enabled!", function_type as "function_type!", created_at as "created_at!" FROM functions ORDER BY created_at DESC"#
     )
     .fetch_all(&state.db)
     .await
@@ -1044,6 +1045,7 @@ async fn list_functions(
             name: func_row.name,
             script_filename: func_row.script_filename,
             enabled: func_row.enabled != 0,
+            function_type: func_row.function_type,
             created_at: func_row.created_at,
             input_tags,
             output_tags,
@@ -1070,10 +1072,11 @@ async fn create_function(
 
     // Save function to database (disabled by default)
     sqlx::query!(
-        "INSERT INTO functions (id, name, script_filename, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO functions (id, name, script_filename, function_type, created_at) VALUES (?, ?, ?, ?, ?)",
         id,
         payload.name,
         script_filename,
+        payload.function_type,
         created_at
     )
     .execute(&state.db)
@@ -1140,6 +1143,7 @@ async fn create_function(
             name: payload.name,
             script_filename,
             enabled: false, // Always disabled by default
+            function_type: payload.function_type,
             created_at,
             input_tags,
             output_tags,
@@ -1158,12 +1162,13 @@ async fn get_function(
         name: String,
         script_filename: String,
         enabled: i64,
+        function_type: String,
         created_at: String,
     }
 
     let func_row = sqlx::query_as!(
         FunctionRow,
-        r#"SELECT id as "id!", name as "name!", script_filename as "script_filename!", enabled as "enabled!", created_at as "created_at!" FROM functions WHERE id = ?"#,
+        r#"SELECT id as "id!", name as "name!", script_filename as "script_filename!", enabled as "enabled!", function_type as "function_type!", created_at as "created_at!" FROM functions WHERE id = ?"#,
         id
     )
     .fetch_optional(&state.db)
@@ -1204,6 +1209,7 @@ async fn get_function(
         name: func_row.name,
         script_filename: func_row.script_filename,
         enabled: func_row.enabled != 0,
+        function_type: func_row.function_type,
         created_at: func_row.created_at,
         input_tags,
         output_tags,
@@ -1294,6 +1300,18 @@ async fn update_function(
             .execute(&state.db)
             .await;
         }
+    }
+
+    // Update function_type if provided
+    if let Some(function_type) = &payload.function_type {
+        sqlx::query!(
+            "UPDATE functions SET function_type = ? WHERE id = ?",
+            function_type,
+            id
+        )
+        .execute(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     // Update enabled status if provided - check for cycles when enabling

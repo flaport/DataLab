@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO functions (id, name, script_filename, function_type, created_at) VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "e592a57471d5ba9218d7d8ceaed0849fa640e75737f8c876659b62fa0d7d9fec"
+}

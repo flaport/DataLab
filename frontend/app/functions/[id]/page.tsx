@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { TagBadge } from "@/components/tag-badge";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -32,6 +39,7 @@ interface Function {
     name: string;
     script_filename: string;
     enabled: boolean;
+    function_type: string;
     created_at: string;
     input_tags: Tag[];
     output_tags: Tag[];
@@ -76,6 +84,7 @@ export default function EditFunctionPage({
     const [scriptContent, setScriptContent] = useState(DEFAULT_SCRIPT);
     const [selectedInputTags, setSelectedInputTags] = useState<string[]>([]);
     const [selectedOutputTags, setSelectedOutputTags] = useState<string[]>([]);
+    const [functionType, setFunctionType] = useState("transform");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +110,7 @@ export default function EditFunctionPage({
                 setScriptContent(funcData.script_content || DEFAULT_SCRIPT);
                 setSelectedInputTags(funcData.input_tags.map((t: Tag) => t.id));
                 setSelectedOutputTags(funcData.output_tags.map((t: Tag) => t.id));
+                setFunctionType(funcData.function_type || "transform");
             } else if (funcRes.status === 404) {
                 router.push("/functions");
                 return;
@@ -141,6 +151,7 @@ export default function EditFunctionPage({
                         script_content: scriptContent,
                         input_tag_ids: selectedInputTags,
                         output_tag_ids: selectedOutputTags,
+                        function_type: functionType,
                     }),
                 },
             );
@@ -299,14 +310,38 @@ export default function EditFunctionPage({
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Function Name */}
-                        <div className="space-y-2">
-                            <Label>Function Name *</Label>
-                            <Input
-                                placeholder="e.g., CSV to JSON Converter"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Function Name */}
+                            <div className="space-y-2">
+                                <Label>Function Name *</Label>
+                                <Input
+                                    placeholder="e.g., CSV to JSON Converter"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Function Type */}
+                            <div className="space-y-2">
+                                <Label>Function Type *</Label>
+                                <Select value={functionType} onValueChange={setFunctionType}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select function type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="transform">
+                                            Transform - Changes data content
+                                        </SelectItem>
+                                        <SelectItem value="convert">
+                                            Convert - Changes file format only
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-slate-500">
+                                    Transform functions show output visualizations, convert
+                                    functions don't
+                                </p>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

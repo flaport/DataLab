@@ -79,6 +79,7 @@ pub struct Function {
     pub name: String,
     pub script_filename: String,
     pub enabled: bool,
+    pub function_type: String,
     pub created_at: String,
     #[serde(default)]
     pub input_tags: Vec<Tag>,
@@ -94,6 +95,12 @@ pub struct CreateFunction {
     pub script_content: String,
     pub input_tag_ids: Vec<String>,
     pub output_tag_ids: Vec<String>,
+    #[serde(default = "default_function_type")]
+    pub function_type: String,
+}
+
+fn default_function_type() -> String {
+    "transform".to_string() // Default to transformation for backward compatibility
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -103,6 +110,7 @@ pub struct UpdateFunction {
     pub input_tag_ids: Option<Vec<String>>,
     pub output_tag_ids: Option<Vec<String>>,
     pub enabled: Option<bool>,
+    pub function_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

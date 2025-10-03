@@ -20,6 +20,7 @@ interface Function {
     name: string;
     script_filename: string;
     enabled: boolean;
+    function_type: string;
     created_at: string;
     input_tags: Tag[];
     output_tags: Tag[];
@@ -162,6 +163,16 @@ export default function FunctionsPage() {
                                     <div className="flex items-center gap-3 mb-3">
                                         <Code className="h-6 w-6 text-blue-600" />
                                         <h3 className="font-semibold text-lg">{func.name}</h3>
+                                        <span
+                                            className={`text-xs px-2 py-1 rounded ${func.function_type === "transform"
+                                                    ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                                                    : "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+                                                }`}
+                                        >
+                                            {func.function_type === "transform"
+                                                ? "Transform"
+                                                : "Convert"}
+                                        </span>
                                         {!func.enabled && (
                                             <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
                                                 Disabled
