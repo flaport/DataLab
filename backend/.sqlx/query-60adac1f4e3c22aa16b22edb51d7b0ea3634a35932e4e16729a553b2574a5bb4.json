@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!\", name as \"name!\", script_filename as \"script_filename!\", created_at as \"created_at!\" FROM functions ORDER BY created_at DESC",
+  "query": "SELECT id as \"id!\", name as \"name!\", script_filename as \"script_filename!\", enabled as \"enabled!\", created_at as \"created_at!\" FROM functions ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
@@ -19,8 +19,13 @@
         "type_info": "Text"
       },
       {
-        "name": "created_at!",
+        "name": "enabled!",
         "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 4,
         "type_info": "Text"
       }
     ],
@@ -31,8 +36,9 @@
       true,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "5af7bdcf8976091c60bd0d0d217cc60c7879bec92dbca1406c799061feda4650"
+  "hash": "60adac1f4e3c22aa16b22edb51d7b0ea3634a35932e4e16729a553b2574a5bb4"
 }

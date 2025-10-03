@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!\", script_filename as \"script_filename!\" FROM functions",
+  "query": "SELECT id as \"id!\", script_filename as \"script_filename!\" FROM functions WHERE enabled = 1",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "cba601a8363a9424841c7f84a2db530d752666197b09085c25b350a0526f405d"
+  "hash": "db4fff8c9cf6e58f11132f2ab5c8c7a3bf0a1f75a27b538ae9223563fa9b0fd5"
 }

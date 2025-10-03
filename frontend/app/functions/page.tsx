@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { TagBadge } from "@/components/tag-badge";
 import { Plus, Code, ArrowRight, Pencil } from "lucide-react";
 
@@ -17,6 +18,7 @@ interface Function {
     id: string;
     name: string;
     script_filename: string;
+    enabled: boolean;
     created_at: string;
     input_tags: Tag[];
     output_tags: Tag[];
@@ -65,6 +67,31 @@ export default function FunctionsPage() {
         }
     };
 
+    const toggleEnabled = async (
+        funcId: string,
+        currentEnabled: boolean,
+        event: React.MouseEvent,
+    ) => {
+        event.stopPropagation();
+
+        try {
+            const response = await fetch(
+                `http://localhost:8080/api/functions/${funcId}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ enabled: !currentEnabled }),
+                },
+            );
+
+            if (response.ok) {
+                fetchFunctions();
+            }
+        } catch (error) {
+            console.error("Failed to toggle function:", error);
+        }
+    };
+
     return (
         <div className="container mx-auto py-8 px-4 max-w-7xl">
             <div className="flex items-center justify-between mb-8">
@@ -103,7 +130,7 @@ export default function FunctionsPage() {
                     {functions.map((func) => (
                         <Card
                             key={func.id}
-                            className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                            className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${!func.enabled ? "opacity-60 bg-muted/30" : ""}`}
                             onClick={() => router.push(`/functions/${func.id}`)}
                         >
                             <div className="flex items-center justify-between">
@@ -111,6 +138,11 @@ export default function FunctionsPage() {
                                     <div className="flex items-center gap-3 mb-3">
                                         <Code className="h-6 w-6 text-blue-600" />
                                         <h3 className="font-semibold text-lg">{func.name}</h3>
+                                        {!func.enabled && (
+                                            <span className="text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
+                                                Disabled
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <div className="flex items-center gap-2">
@@ -142,18 +174,35 @@ export default function FunctionsPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        router.push(`/functions/${func.id}`);
-                                    }}
-                                    className="h-8 w-8"
-                                    title="Edit function"
-                                >
-                                    <Pencil className="h-4 w-4 text-blue-600" />
-                                </Button>
+                                <div className="flex items-center gap-3">
+                                    <div
+                                        className="flex items-center gap-2"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <span className="text-sm text-muted-foreground">
+                                            {func.enabled ? "Enabled" : "Disabled"}
+                                        </span>
+                                        <Switch
+                                            checked={func.enabled}
+                                            onCheckedChange={() =>
+                                                toggleEnabled(func.id, func.enabled, event as any)
+                                            }
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(`/functions/${func.id}`);
+                                        }}
+                                        className="h-8 w-8"
+                                        title="Edit function"
+                                    >
+                                        <Pencil className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                </div>
                             </div>
                         </Card>
                     ))}

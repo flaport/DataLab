@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS functions (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     script_filename TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL
 );
 

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { TagBadge } from "@/components/tag-badge";
 import {
     Card,
@@ -29,6 +31,7 @@ interface Function {
     id: string;
     name: string;
     script_filename: string;
+    enabled: boolean;
     created_at: string;
     input_tags: Tag[];
     output_tags: Tag[];
@@ -219,9 +222,31 @@ export default function EditFunctionPage({
                             Update the function script and tag configuration
                         </p>
                     </div>
-                    <Button variant="destructive" onClick={handleDelete}>
-                        Delete Function
-                    </Button>
+                    <div className="flex items-center gap-4">
+                        {func && (
+                            <div className="flex items-center gap-2">
+                                <Label>{func.enabled ? "Enabled" : "Disabled"}</Label>
+                                <Switch
+                                    checked={func.enabled}
+                                    onCheckedChange={async (checked) => {
+                                        try {
+                                            await fetch(`http://localhost:8080/api/functions/${id}`, {
+                                                method: "PUT",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ enabled: checked }),
+                                            });
+                                            fetchData();
+                                        } catch (error) {
+                                            console.error("Failed to toggle:", error);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
+                        <Button variant="destructive" onClick={handleDelete}>
+                            Delete Function
+                        </Button>
+                    </div>
                 </div>
             </div>
 

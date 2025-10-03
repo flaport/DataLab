@@ -78,6 +78,7 @@ pub struct Function {
     pub id: String,
     pub name: String,
     pub script_filename: String,
+    pub enabled: bool,
     pub created_at: String,
     #[serde(default)]
     pub input_tags: Vec<Tag>,
@@ -101,6 +102,7 @@ pub struct UpdateFunction {
     pub script_content: Option<String>,
     pub input_tag_ids: Option<Vec<String>>,
     pub output_tag_ids: Option<Vec<String>>,
+    pub enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
