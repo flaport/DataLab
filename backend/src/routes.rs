@@ -23,6 +23,10 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/uploads/:id/tags", post(add_tags_to_upload))
         .route("/uploads/:id/tags/:tag_id", delete(remove_tag_from_upload))
         .route("/uploads/:id/derived", get(get_derived_files))
+        .route(
+            "/uploads/:id/trigger/:function_id",
+            post(trigger_function_manually),
+        )
         .route("/functions", get(list_functions).post(create_function))
         .route(
             "/functions/:id",
@@ -598,6 +602,30 @@ async fn get_derived_files(
         .collect();
 
     Ok(Json(result))
+}
+
+async fn trigger_function_manually(
+    State(state): State<Arc<AppState>>,
+    Path((upload_id, function_id)): Path<(String, String)>,
+) -> Result<StatusCode, StatusCode> {
+    // Verify upload exists
+    sqlx::query!(r#"SELECT id FROM uploads WHERE id = ?"#, upload_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Verify function exists
+    sqlx::query!(r#"SELECT id FROM functions WHERE id = ?"#, function_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Trigger the function execution
+    trigger_functions_for_upload(state, upload_id);
+
+    Ok(StatusCode::ACCEPTED) // 202 - Accepted for processing
 }
 
 // ============= FUNCTIONS =============

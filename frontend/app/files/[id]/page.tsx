@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TagBadge } from "@/components/tag-badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -23,6 +32,7 @@ import {
   Download,
   Code,
   ArrowRight,
+  Play,
 } from "lucide-react";
 
 interface Tag {
@@ -59,6 +69,14 @@ interface Upload {
   lineage?: FileLineageInfo;
 }
 
+interface Function {
+  id: string;
+  name: string;
+  enabled: boolean;
+  input_tags: Tag[];
+  output_tags: Tag[];
+}
+
 export default function FileDashboard({
   params,
 }: {
@@ -66,13 +84,16 @@ export default function FileDashboard({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { toast } = useToast();
   const [file, setFile] = useState<Upload | null>(null);
   const [derivedFiles, setDerivedFiles] = useState<DerivedFile[]>([]);
+  const [availableFunctions, setAvailableFunctions] = useState<Function[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFile();
     fetchDerivedFiles();
+    fetchAvailableFunctions();
   }, [id]);
 
   const fetchFile = async () => {
@@ -102,6 +123,49 @@ export default function FileDashboard({
       }
     } catch (error) {
       console.error("Failed to fetch derived files:", error);
+    }
+  };
+
+  const fetchAvailableFunctions = async () => {
+    try {
+      const response = await fetch("http://localhost:8080/api/functions");
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableFunctions(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch functions:", error);
+    }
+  };
+
+  const triggerFunction = async (functionId: string, functionName: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/uploads/${id}/trigger/${functionId}`,
+        { method: "POST" },
+      );
+
+      if (response.ok) {
+        toast({
+          title: "Function triggered",
+          description: `${functionName} is now running on this file.`,
+        });
+        // Refresh derived files after a delay to show new outputs
+        setTimeout(fetchDerivedFiles, 2000);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Failed to trigger function",
+          description: "Please try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to trigger function:", error);
+      toast({
+        variant: "destructive",
+        title: "Network error",
+        description: "Please check your connection.",
+      });
     }
   };
 
@@ -155,10 +219,46 @@ export default function FileDashboard({
               </div>
             </div>
           </div>
-          <Button>
-            <Download className="mr-2 h-4 w-4" />
-            Download
-          </Button>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Play className="mr-2 h-4 w-4" />
+                  Run Function
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Available Functions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {availableFunctions.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No functions available
+                  </div>
+                ) : (
+                  availableFunctions.map((func) => (
+                    <DropdownMenuItem
+                      key={func.id}
+                      onClick={() => triggerFunction(func.id, func.name)}
+                      disabled={!func.enabled}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span>{func.name}</span>
+                        {!func.enabled && (
+                          <span className="text-xs text-muted-foreground">
+                            (disabled)
+                          </span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button>
+              <Download className="mr-2 h-4 w-4" />
+              Download
+            </Button>
+          </div>
         </div>
       </div>
 

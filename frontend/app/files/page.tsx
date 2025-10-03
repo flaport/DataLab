@@ -52,12 +52,19 @@ interface Upload {
   lineage?: FileLineageInfo;
 }
 
+interface Function {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
 export default function DataPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [functions, setFunctions] = useState<Function[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Initialize from URL params
@@ -118,9 +125,10 @@ export default function DataPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [uploadsRes, tagsRes] = await Promise.all([
+      const [uploadsRes, tagsRes, functionsRes] = await Promise.all([
         fetch("http://localhost:8080/api/uploads"),
         fetch("http://localhost:8080/api/tags"),
+        fetch("http://localhost:8080/api/functions"),
       ]);
 
       if (uploadsRes.ok) {
@@ -130,6 +138,10 @@ export default function DataPage() {
       if (tagsRes.ok) {
         const tagsData = await tagsRes.json();
         setTags(tagsData);
+      }
+      if (functionsRes.ok) {
+        const functionsData = await functionsRes.json();
+        setFunctions(functionsData);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -413,6 +425,8 @@ export default function DataPage() {
                 searchQuery,
               )}
               clickable={true}
+              availableFunctions={functions}
+              onFunctionTriggered={fetchData}
             />
           ))}
         </div>

@@ -3,7 +3,16 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TagBadge } from "@/components/tag-badge";
-import { FileIcon, Trash2, Tag as TagIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { FileIcon, Trash2, Tag as TagIcon, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Tag {
@@ -29,12 +38,20 @@ interface Upload {
   lineage?: FileLineageInfo;
 }
 
+interface Function {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
 interface FileCardProps {
   upload: Upload;
   onEditTags?: (upload: Upload) => void;
   onDelete?: (id: string) => void;
   highlightedFilename?: React.ReactNode;
   clickable?: boolean;
+  availableFunctions?: Function[];
+  onFunctionTriggered?: () => void;
 }
 
 export function FileCard({
@@ -43,8 +60,11 @@ export function FileCard({
   onDelete,
   highlightedFilename,
   clickable = false,
+  availableFunctions = [],
+  onFunctionTriggered,
 }: FileCardProps) {
   const router = useRouter();
+  const { toast } = useToast();
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -96,8 +116,40 @@ export function FileCard({
             ))}
           </div>
         </div>
-        {(onEditTags || onDelete) && (
+        {(onEditTags || onDelete || availableFunctions.length > 0) && (
           <div className="flex gap-2">
+            {availableFunctions.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  asChild
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button variant="ghost" size="icon" title="Run function">
+                    <Play className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Run Function</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {availableFunctions.map((func) => (
+                    <DropdownMenuItem
+                      key={func.id}
+                      onClick={(e) => triggerFunction(func.id, func.name, e)}
+                      disabled={!func.enabled}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-sm">{func.name}</span>
+                        {!func.enabled && (
+                          <span className="text-xs text-muted-foreground">
+                            (disabled)
+                          </span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {onEditTags && (
               <Button
                 variant="ghost"
