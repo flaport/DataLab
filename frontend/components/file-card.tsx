@@ -84,6 +84,14 @@ export function FileCard({
     }
   };
 
+  // Filter functions that can run on this file (have all required input tags)
+  const applicableFunctions = availableFunctions.filter((func) => {
+    const uploadTagIds = upload.tags.map((t) => t.id);
+    return func.input_tags.every((inputTag) =>
+      uploadTagIds.includes(inputTag.id),
+    );
+  });
+
   return (
     <Card
       className={`p-4 ${clickable ? "cursor-pointer hover:shadow-lg transition-shadow" : ""}`}
@@ -116,9 +124,9 @@ export function FileCard({
             ))}
           </div>
         </div>
-        {(onEditTags || onDelete || availableFunctions.length > 0) && (
+        {(onEditTags || onDelete || applicableFunctions.length > 0) && (
           <div className="flex gap-2">
-            {availableFunctions.length > 0 && (
+            {applicableFunctions.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   asChild
@@ -131,17 +139,16 @@ export function FileCard({
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel>Run Function</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {availableFunctions.map((func) => (
+                  {applicableFunctions.map((func) => (
                     <DropdownMenuItem
                       key={func.id}
                       onClick={(e) => triggerFunction(func.id, func.name, e)}
-                      disabled={!func.enabled}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className="text-sm">{func.name}</span>
                         {!func.enabled && (
-                          <span className="text-xs text-muted-foreground">
-                            (disabled)
+                          <span className="text-xs text-yellow-600 dark:text-yellow-500">
+                            (auto-disabled)
                           </span>
                         )}
                       </div>

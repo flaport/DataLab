@@ -169,6 +169,16 @@ export default function FileDashboard({
     }
   };
 
+  // Filter functions that can run on this file (have all required input tags)
+  const applicableFunctions = file
+    ? availableFunctions.filter((func) => {
+      const fileTagIds = file.tags.map((t) => t.id);
+      return func.input_tags.every((inputTag) =>
+        fileTagIds.includes(inputTag.id),
+      );
+    })
+    : [];
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -230,22 +240,21 @@ export default function FileDashboard({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Available Functions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {availableFunctions.length === 0 ? (
+                {applicableFunctions.length === 0 ? (
                   <div className="p-2 text-sm text-muted-foreground">
-                    No functions available
+                    No applicable functions for this file
                   </div>
                 ) : (
-                  availableFunctions.map((func) => (
+                  applicableFunctions.map((func) => (
                     <DropdownMenuItem
                       key={func.id}
                       onClick={() => triggerFunction(func.id, func.name)}
-                      disabled={!func.enabled}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span>{func.name}</span>
                         {!func.enabled && (
-                          <span className="text-xs text-muted-foreground">
-                            (disabled)
+                          <span className="text-xs text-yellow-600 dark:text-yellow-500">
+                            (auto-disabled)
                           </span>
                         )}
                       </div>
