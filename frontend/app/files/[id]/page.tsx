@@ -210,7 +210,8 @@ export default function FileDashboard({
       "webp",
       "svg",
       "bmp", // images
-      "csv", // data
+      "csv",
+      "parquet", // data
       "txt",
       "log",
       "md",

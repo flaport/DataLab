@@ -26,6 +26,7 @@ import {
     RotateCw,
 } from "lucide-react";
 import Papa from "papaparse";
+import * as arrow from "apache-arrow";
 
 interface FileViewerProps {
     fileId: string;
@@ -70,6 +71,9 @@ export function FileViewer({
         }
         if (["csv"].includes(extension)) {
             return "csv";
+        }
+        if (["parquet"].includes(extension)) {
+            return "parquet";
         }
         if (
             [
@@ -119,11 +123,16 @@ export function FileViewer({
                 throw new Error("Failed to fetch file content");
             }
 
-            const content = await response.text();
-            setFileContent(content);
+            if (fileType === "parquet") {
+                const arrayBuffer = await response.arrayBuffer();
+                await parseParquetContent(arrayBuffer);
+            } else {
+                const content = await response.text();
+                setFileContent(content);
 
-            if (fileType === "csv") {
-                parseCsvContent(content);
+                if (fileType === "csv") {
+                    parseCsvContent(content);
+                }
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -160,6 +169,68 @@ export function FileViewer({
             header: false,
             skipEmptyLines: true,
         });
+    };
+
+    const parseParquetContent = async (arrayBuffer: ArrayBuffer) => {
+        try {
+            // Try to parse the Parquet file using Apache Arrow
+            const uint8Array = new Uint8Array(arrayBuffer);
+
+            try {
+                // Apache Arrow can read some Parquet files directly
+                const table = arrow.tableFromIPC(uint8Array);
+
+                // Extract column names
+                const headers = table.schema.fields.map((field) => field.name);
+
+                // Convert table data to rows
+                const rows: string[][] = [];
+                for (let i = 0; i < Math.min(table.numRows, 10000); i++) {
+                    // Limit to 10k rows for performance
+                    const row: string[] = [];
+                    for (let j = 0; j < table.numCols; j++) {
+                        const column = table.getChildAt(j);
+                        const value = column?.get(i);
+                        row.push(value?.toString() || "");
+                    }
+                    rows.push(row);
+                }
+
+                setCsvData({
+                    headers,
+                    rows,
+                    totalRows: rows.length,
+                });
+            } catch (arrowError) {
+                // If Arrow parsing fails, show basic file info
+                setCsvData({
+                    headers: ["Property", "Value"],
+                    rows: [
+                        ["File Type", "Parquet"],
+                        [
+                            "File Size",
+                            `${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`,
+                        ],
+                        ["Bytes", arrayBuffer.byteLength.toLocaleString()],
+                        ["Status", "Binary Parquet file detected"],
+                        [
+                            "Note",
+                            "This appears to be a Parquet file, but full parsing requires specialized tools",
+                        ],
+                        [
+                            "Suggestion",
+                            "Try converting to CSV format for better browser visualization",
+                        ],
+                    ],
+                    totalRows: 6,
+                });
+            }
+        } catch (err) {
+            setError(
+                "Failed to parse Parquet file: " +
+                (err instanceof Error ? err.message : "Unknown error"),
+            );
+        }
     };
 
     const getFilteredRows = () => {
@@ -327,8 +398,8 @@ export function FileViewer({
         );
     }
 
-    // CSV Viewer
-    if (fileType === "csv" && csvData) {
+    // CSV/Parquet Viewer
+    if ((fileType === "csv" || fileType === "parquet") && csvData) {
         const filteredRows = getFilteredRows();
         const paginatedRows = getPaginatedRows();
         const totalPages = getTotalPages();
@@ -339,7 +410,8 @@ export function FileViewer({
                     <CardTitle className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <FileText className="h-5 w-5" />
-                            CSV Data ({csvData.totalRows.toLocaleString()} rows,{" "}
+                            {fileType === "parquet" ? "Parquet" : "CSV"} Data (
+                            {csvData.totalRows.toLocaleString()} rows,{" "}
                             {csvData.headers.length} columns)
                         </div>
                         {showDownloadButton && (
