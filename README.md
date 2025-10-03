@@ -89,6 +89,19 @@ just dev
 
 Then open your browser and navigate to `http://localhost:3000`
 
+### Populate with Defaults (Optional)
+
+Set up useful default tags and conversion functions:
+
+```bash
+python3 populate.py
+```
+
+This creates:
+- **Default Tags**: `.csv`, `.parquet`, `.json` with color coding
+- **Conversion Functions**: csv2parquet, parquet2json, json2csv (disabled by default)
+- **Smart Visualization**: Convert functions won't show duplicate visualizations
+
 ## 🔄 How It Works
 
 ### Basic Workflow
@@ -401,6 +414,16 @@ ls -la $OUTPUT_DIR
 ```
 
 See `backend/scripts/example_csv_to_json.py` for a complete example.
+
+### Default Functions
+
+The `populate.py` script creates these useful conversion functions in `default_functions/`:
+
+- **csv2parquet.py**: Converts CSV files to efficient Parquet format
+- **parquet2json.py**: Converts Parquet files to human-readable JSON
+- **json2csv.py**: Converts JSON files to spreadsheet-compatible CSV
+
+All use pandas for reliable data conversion and are marked as "convert" type to prevent duplicate visualizations.
 
 ### Frontend Development
 
