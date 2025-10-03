@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { TagBadge } from "@/components/tag-badge";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, Code, ArrowRight, Pencil } from "lucide-react";
 
 interface Tag {
@@ -46,6 +47,7 @@ output_dir = os.environ["OUTPUT_DIR"]
 
 export default function FunctionsPage() {
     const router = useRouter();
+    const { toast } = useToast();
     const [functions, setFunctions] = useState<Function[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -86,16 +88,31 @@ export default function FunctionsPage() {
 
             if (response.ok) {
                 fetchFunctions();
+                toast({
+                    title: currentEnabled ? "Function disabled" : "Function enabled",
+                    description: "The function has been updated successfully.",
+                });
             } else if (response.status === 409) {
-                alert(
-                    "Cannot enable this function: it would create a circular dependency!\n\nDisable conflicting functions first.",
-                );
+                toast({
+                    variant: "destructive",
+                    title: "Cannot enable function",
+                    description:
+                        "This would create a circular dependency. Disable conflicting functions first.",
+                });
             } else {
-                alert("Failed to toggle function. Please try again.");
+                toast({
+                    variant: "destructive",
+                    title: "Failed to toggle function",
+                    description: "Please try again.",
+                });
             }
         } catch (error) {
             console.error("Failed to toggle function:", error);
-            alert("Network error. Please check your connection.");
+            toast({
+                variant: "destructive",
+                title: "Network error",
+                description: "Please check your connection and try again.",
+            });
         }
     };
 

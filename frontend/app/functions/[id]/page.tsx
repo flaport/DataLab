@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { TagBadge } from "@/components/tag-badge";
+import { useToast } from "@/hooks/use-toast";
 import {
     Card,
     CardContent,
@@ -65,6 +66,7 @@ export default function EditFunctionPage({
     const { id } = use(params);
     const router = useRouter();
     const { theme, systemTheme } = useTheme();
+    const { toast } = useToast();
     const [mounted, setMounted] = useState(false);
     const [tags, setTags] = useState<Tag[]>([]);
     const [func, setFunc] = useState<Function | null>(null);
@@ -240,16 +242,35 @@ export default function EditFunctionPage({
 
                                             if (response.ok) {
                                                 fetchData();
+                                                toast({
+                                                    title: checked
+                                                        ? "Function enabled"
+                                                        : "Function disabled",
+                                                    description:
+                                                        "The function has been updated successfully.",
+                                                });
                                             } else if (response.status === 409) {
-                                                alert(
-                                                    "Cannot enable this function: it would create a circular dependency!\n\nDisable conflicting functions first.",
-                                                );
+                                                toast({
+                                                    variant: "destructive",
+                                                    title: "Cannot enable function",
+                                                    description:
+                                                        "This would create a circular dependency. Disable conflicting functions first.",
+                                                });
                                             } else {
-                                                alert("Failed to toggle function.");
+                                                toast({
+                                                    variant: "destructive",
+                                                    title: "Failed to toggle function",
+                                                    description: "Please try again.",
+                                                });
                                             }
                                         } catch (error) {
                                             console.error("Failed to toggle:", error);
-                                            alert("Network error. Please try again.");
+                                            toast({
+                                                variant: "destructive",
+                                                title: "Network error",
+                                                description:
+                                                    "Please check your connection and try again.",
+                                            });
                                         }
                                     }}
                                 />

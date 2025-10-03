@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "DataLab",
@@ -26,6 +27,7 @@ export default function RootLayout({
             <Sidebar />
             <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
