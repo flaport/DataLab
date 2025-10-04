@@ -80,8 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("✅ Database initialized");
 
     // Initialize script executor
-    let executor =
-        ScriptExecutor::new_with_dirs(args.scripts_dir, args.uploads_dir, args.output_dir);
+    let executor = ScriptExecutor::new(args.scripts_dir, args.uploads_dir, args.output_dir);
 
     // Create execution semaphore (limit concurrent function executions)
     let execution_semaphore = Arc::new(Semaphore::new(args.max_concurrent_jobs));

@@ -9,15 +9,7 @@ pub struct ScriptExecutor {
 }
 
 impl ScriptExecutor {
-    pub fn new() -> Self {
-        Self {
-            scripts_dir: PathBuf::from("scripts"),
-            uploads_dir: PathBuf::from("uploads"),
-            output_dir: PathBuf::from("output"),
-        }
-    }
-
-    pub fn new_with_dirs(scripts_dir: PathBuf, uploads_dir: PathBuf, output_dir: PathBuf) -> Self {
+    pub fn new(scripts_dir: PathBuf, uploads_dir: PathBuf, output_dir: PathBuf) -> Self {
         Self {
             scripts_dir,
             uploads_dir,
