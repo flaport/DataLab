@@ -112,8 +112,8 @@ This creates:
 3. **Upload/tag triggers function** → Job created with status SUBMITTED
 4. **Job waits for semaphore permit** (max 10 concurrent)
 5. **Execution starts** → Status: RUNNING
-6. **Python script runs** with `SOURCE_PATH` and `OUTPUT_DIR` env vars
-7. **Outputs created** → Registered as new files with output tags
+6. **Python script runs** with input file path, returns output paths
+7. **Outputs managed** → Files copied to output directory, then registered as uploads
 8. **Lineage recorded** → Output linked to source file and function
 9. **Job completes** → Status: SUCCESS (or FAILED with error log)
 
@@ -195,7 +195,7 @@ The backend supports configuration via **CLI arguments** or **environment variab
 | Max Jobs    | `--max-concurrent-jobs` | `DL_MAX_CONCURRENT_JOBS` | `10`                   | Concurrent function executions |
 | Uploads Dir | `--uploads-dir`         | `DL_UPLOADS_DIR`         | `uploads`              | File upload directory          |
 | Scripts Dir | `--scripts-dir`         | `DL_SCRIPTS_DIR`         | `scripts`              | Function scripts directory     |
-| Output Dir  | `--output-dir`          | `DL_OUTPUT_DIR`          | `output`               | Function output directory      |
+| Output Dir  | `--output-dir`          | `DL_OUTPUT_DIR`          | `output`               | Temporary function output directory |
 
 **Examples:**
 
@@ -339,7 +339,7 @@ The database schema is defined in migrations:
 
 - Files: `uploads/` directory (will migrate to S3)
 - Scripts: `scripts/` directory (versioned by timestamp)
-- Temp outputs: `output/` directory (moved to uploads after processing)
+- Function outputs: `output/` directory (temporary staging, files moved to uploads after processing)
 
 #### Writing Functions
 
@@ -350,71 +350,93 @@ Functions are Python scripts that automatically process files based on tags.
 ```python
 # /// script
 # requires-python = ">=3.11"
-# dependencies = [
-#   "pandas>=2.0.0",
-# ]
+# dependencies = ["pandas"]
 # ///
 
-import os
+from pathlib import Path
 import pandas as pd
 
-# Get paths from environment
-source_path = os.environ["SOURCE_PATH"]
-output_dir = os.environ["OUTPUT_DIR"]
 
-# Process the file
-df = pd.read_csv(source_path)
-base_name = os.path.splitext(os.path.basename(source_path))[0]
+def main(path: Path) -> Path:
+    """Convert a CSV file to JSON format.
 
-# Write output
-output_path = os.path.join(output_dir, f"{base_name}.json")
-df.to_json(output_path, orient="records", indent=2)
+    :param path: Path to the input CSV file.
+    :return: Path to the output JSON file.
+    """
+    # Read the CSV file
+    df = pd.read_csv(path)
+
+    # Define the output path with .json extension
+    json_path = path.with_suffix(".json")
+
+    # Write the DataFrame to a JSON file
+    df.to_json(json_path, orient="records", indent=2)
+
+    print(f"Successfully converted CSV to JSON: {json_path}")
+    print(f"Rows: {len(df)}, Columns: {len(df.columns)}")
+
+    return json_path
 ```
 
 **How Functions Work:**
 
 1. Define **input tags** (e.g., `.csv`, `raw-data`)
 2. Define **output tags** (e.g., `.json`, `processed`)
-3. Write Python script using PEP 723 inline metadata
+3. Write Python script with a `main(path: Path)` function using PEP 723 inline metadata
 4. Function runs automatically when:
    - A file is uploaded with ALL input tags
    - Tags are added to existing file matching ALL input tags
    - **A derived file is created** with matching tags (enables chaining!)
-5. Output files are saved to `uploads/` with:
+5. Function execution:
+   - **Input**: Receives `Path` to input file
+   - **Output**: Returns `Path` (or `List[Path]`) to output files
+   - **Management**: Output files automatically copied to output directory
+6. Output files are saved to `uploads/` with:
    - **Success**: Output tags + extension tag
    - **Failure**: Extension tag (.log) only
-6. Lineage records track source → function → output relationships
-7. File cards show "✓ From source.csv via Function Name" for generated files
-8. **Processing chains**: Output files can trigger more functions, creating pipelines
+7. Lineage records track source → function → output relationships
+8. File cards show "✓ From source.csv via Function Name" for generated files
+9. **Processing chains**: Output files can trigger more functions, creating pipelines
 
-**Environment Variables:**
+**Function Requirements:**
 
-- `SOURCE_PATH` - Full path to input file
-- `OUTPUT_DIR` - Directory to write output files
-
-**Script Requirements:**
-
-- Must use PEP 723 inline metadata format
+- Must define a `main(path: Path) -> Path | List[Path] | None` function
+- Must use PEP 723 inline metadata format for dependencies
 - Dependencies managed by `uv`
-- Executed with `uv run --script`
+- Executed with automatic wrapper that calls `main()` function
+- Can return single path, list of paths, or None for no outputs
 
 **Testing Functions Locally:**
 
-```bash
-# Set environment variables
-export SOURCE_PATH="/path/to/input.csv"
-export OUTPUT_DIR="./test_output"
-mkdir -p $OUTPUT_DIR
+```python
+# Create a test script that calls your function directly
+from pathlib import Path
+from your_function import main
 
-# Run the script
-cd backend
-uv run --script scripts/your_function.py
+# Test with a sample file
+input_file = Path("test_input.csv")
+output_files = main(input_file)
 
-# Check outputs
-ls -la $OUTPUT_DIR
+print(f"Generated outputs: {output_files}")
 ```
 
-See `backend/scripts/example_csv_to_json.py` for a complete example.
+Or test the complete execution with the wrapper:
+
+```bash
+# The backend automatically wraps your function with execution logic
+# Functions are stored in scripts/ directory and executed via the web interface
+```
+
+See `default_functions/csv2parquet.py` for a complete example.
+
+**Function Format Advantages:**
+
+- **Type Safety**: Full IDE support with type hints and autocomplete
+- **Easy Testing**: Functions can be unit tested independently
+- **Clean Interface**: Natural Python function signature
+- **Flexible Output**: Return single file, multiple files, or no files
+- **Path Objects**: Modern Python pathlib usage throughout
+- **No Environment Variables**: Clean function interface without global state
 
 ### Default Functions
 
@@ -461,7 +483,7 @@ All use pandas for reliable data conversion and are marked as "convert" type to 
   - Define input tags and output tags for functions
   - Scripts run automatically when files match input tags
   - Supports PEP 723 inline metadata for dependencies
-  - Executed via `uv run --script` with SOURCE_PATH env var
+  - Executed via automatic wrapper that calls `main(path: Path)` function
   - Output files automatically registered with output tags
   - Failed executions create log files
   - Script versioning by timestamp
