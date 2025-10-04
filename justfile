@@ -4,6 +4,9 @@
 default:
     @just --list
 
+populate:
+    uv run --script populate.py
+
 # Install all dependencies
 install:
     @echo "📦 Installing backend dependencies..."

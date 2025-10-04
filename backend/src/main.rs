@@ -73,19 +73,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize database
     let db = SqlitePool::connect(&args.database_url).await?;
 
-    // Run migrations
-    let migration_001 = include_str!("../migrations/001_init.sql");
-    sqlx::query(migration_001).execute(&db).await?;
-    let migration_002 = include_str!("../migrations/002_functions.sql");
-    sqlx::query(migration_002).execute(&db).await?;
-    let migration_003 = include_str!("../migrations/003_file_lineage.sql");
-    sqlx::query(migration_003).execute(&db).await?;
-    let migration_004 = include_str!("../migrations/004_jobs.sql");
-    sqlx::query(migration_004).execute(&db).await?;
-    let migration_005 = include_str!("../migrations/005_update_function_type_constraint.sql");
-    sqlx::query(migration_005).execute(&db).await?;
-    let migration_006 = include_str!("../migrations/006_simplify_function_type_constraint.sql");
-    sqlx::query(migration_006).execute(&db).await?;
+    // Run initial database migration
+    let migration = include_str!("../migrations/001_initial_database.sql");
+    sqlx::query(migration).execute(&db).await?;
 
     tracing::info!("✅ Database initialized");
 
