@@ -3,22 +3,26 @@
 # dependencies = ["pandas", "pyarrow"]
 # ///
 
-import os
+from pathlib import Path
 import pandas as pd
 
-# Get the source file path and output directory from environment
-source_path = os.environ["SOURCE_PATH"]
-output_dir = os.environ["OUTPUT_DIR"]
 
-# Read CSV file
-df = pd.read_csv(source_path)
+def main(path: Path) -> Path:
+    """Convert a CSV file to Parquet format.
 
-# Get the base filename without extension
-base_name = os.path.splitext(os.path.basename(source_path))[0]
+    :param path: Path to the input CSV file.
+    :return: Path to the output Parquet file.
+    """
+    # Read the CSV file
+    df = pd.read_csv(path)
 
-# Write as Parquet file
-output_path = os.path.join(output_dir, f"{base_name}.parquet")
-df.to_parquet(output_path, index=False)
+    # Define the output path with .parquet extension
+    parquet_path = path.with_suffix(".parquet")
 
-print(f"Successfully converted CSV to Parquet: {output_path}")
-print(f"Rows: {len(df)}, Columns: {len(df.columns)}")
+    # Write the DataFrame to a Parquet file
+    df.to_parquet(parquet_path, index=False)
+
+    print(f"Successfully converted CSV to Parquet: {parquet_path}")
+    print(f"Rows: {len(df)}, Columns: {len(df.columns)}")
+
+    return parquet_path

@@ -3,22 +3,26 @@
 # dependencies = ["pandas"]
 # ///
 
-import os
+from pathlib import Path
 import pandas as pd
 
-# Get the source file path and output directory from environment
-source_path = os.environ["SOURCE_PATH"]
-output_dir = os.environ["OUTPUT_DIR"]
 
-# Read JSON file
-df = pd.read_json(source_path)
+def main(path: Path) -> Path:
+    """Convert a JSON file to CSV format.
 
-# Get the base filename without extension
-base_name = os.path.splitext(os.path.basename(source_path))[0]
+    :param path: Path to the input JSON file.
+    :return: Path to the output CSV file.
+    """
+    # Read the JSON file
+    df = pd.read_json(path)
 
-# Write as CSV file
-output_path = os.path.join(output_dir, f"{base_name}.csv")
-df.to_csv(output_path, index=False)
+    # Define the output path with .csv extension
+    csv_path = path.with_suffix(".csv")
 
-print(f"Successfully converted JSON to CSV: {output_path}")
-print(f"Rows: {len(df)}, Columns: {len(df.columns)}")
+    # Write the DataFrame to a CSV file
+    df.to_csv(csv_path, index=False)
+
+    print(f"Successfully converted JSON to CSV: {csv_path}")
+    print(f"Rows: {len(df)}, Columns: {len(df.columns)}")
+
+    return csv_path

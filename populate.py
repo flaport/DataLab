@@ -20,7 +20,7 @@ import uuid
 import json
 
 
-BASE_URL = "http://localhost:8080/api"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080/api")
 
 
 def check_backend():

@@ -7,6 +7,39 @@ default:
 populate:
     uv run --script populate.py
 
+# Create a fresh database (removes existing database and recreates it)
+fresh-db:
+    @echo "🗑️  Removing existing database..."
+    -@rm -f datalab.db
+    @echo "🔨 Building backend if needed..."
+    @cd backend && cargo build --quiet
+    @echo "🏗️  Creating fresh database..."
+    @touch datalab.db
+    @cd backend && timeout 3s ./target/debug/datalab-backend || true
+    @echo "✅ Fresh database created!"
+    @echo "💡 Run 'just populate' to add default functions and tags"
+
+# Create a fresh database and populate it with defaults
+reset-db: fresh-db kill-ports
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🚀 Starting temporary backend for population..."
+    cd backend && ./target/debug/datalab-backend --port 8082 &
+    BACKEND_PID=$!
+    
+    # Wait for backend to start
+    echo "⏳ Waiting for backend to be ready..."
+    sleep 3
+    
+    # Populate the database (with custom port)
+    echo "📝 Populating database..."
+    BASE_URL="http://localhost:8082/api" uv run --script populate.py
+    
+    # Clean up
+    echo "🛑 Stopping temporary backend..."
+    kill $BACKEND_PID 2>/dev/null || true
+    echo "🎉 Database reset and populated successfully!"
+
 # Install all dependencies
 install:
     @echo "📦 Installing backend dependencies..."
